@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>P2P エアホッケー (PeerJS実装)</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; background-color: #f0f0f0; touch-action: none; }
+        #gameContainer { position: relative; width: 90vw; max-width: 400px; margin-top: 10px; }
+        canvas { border: 2px solid black; background-color: #fff; display: block; width: 100%; aspect-ratio: 2 / 3; }
+        .info-area, .controls, .p2p-info { margin-top: 10px; text-align: center; width: 90%; max-width: 400px; }
+        button { padding: 10px 15px; margin: 5px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; }
+        button.primary { background-color: #007bff; color: white; }
+        button.secondary { background-color: #6c757d; color: white; }
+        #qrCodeContainer { margin: 10px auto; width: 150px; height: 150px; border: 1px solid #ddd; background-color: white; padding: 5px; }
+        #roomInfo { margin-top: 5px; font-size: 14px; word-break: break-all; }
+        .hidden { display: none !important; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <h1>P2P エアホッケー</h1>
+
+    <div id="gameContainer">
+        <canvas id="airHockeyCanvas"></canvas>
+    </div>
+
+    <div class="info-area">
+        <p id="score">あなた: 0 - AI: 0</p>
+        <p id="gameStatus">ようこそ！</p>
+    </div>
+
+    <div id="initialControls" class="controls">
+        <button id="hostGameButton" class="primary">部屋を作成 (QR表示 & AI対戦)</button>
+        <p style="font-size: 0.9em; margin-top: 10px;">または、友達から送られたURLで参加してください。</p>
+    </div>
+
+    <div id="p2pHostInfo" class="p2p-info hidden">
+        <p>友達が参加するまでAIと対戦します。</p>
+        <p>このQRコードを友達にスキャンしてもらうか、以下の情報を伝えてください:</p>
+        <div id="qrCodeContainer"></div>
+        <div id="roomInfo"></div>
+        <button id="cancelHostButton" class="secondary" style="margin-top:10px;">ホスティング中止</button>
+    </div>
+    
+    <div id="p2pClientInfo" class="p2p-info hidden">
+        <p id="joinStatus"></p>
+        <!-- クライアントはURLパラメータからIDを取得するため、入力欄は基本的に不要 -->
+    </div>
+
+    <script>
+        const canvas = document.getElementById('airHockeyCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const scoreDisplay = document.getElementById('score');
+        const gameStatusDisplay = document.getElementById('gameStatus');
+        const initialControls = document.getElementById('initialControls');
+        const hostGameButton = document.getElementById('hostGameButton');
+        const p2pHostInfo = document.getElementById('p2pHostInfo');
+        const qrCodeContainer = document.getElementById('qrCodeContainer');
+        const roomInfoDisplay = document.getElementById('roomInfo');
+        const cancelHostButton = document.getElementById('cancelHostButton');
+        const p2pClientInfo = document.getElementById('p2pClientInfo');
+        const joinStatusDisplay = document.getElementById('joinStatus');
+
+        let PADDLE_RADIUS = 20, PUCK_RADIUS = 15, GOAL_WIDTH = 100;
+        const WINNING_SCORE = 10;
+        const PADDLE_SPEED_FACTOR = 0.15;
+        let canvasWidth, canvasHeight;
+
+        let player1 = { x: 0, y: 0, score: 0, radius: PADDLE_RADIUS, targetX: 0, targetY: 0, name: "あなた" };
+        let player2 = { x: 0, y: 0, score: 0, radius: PADDLE_RADIUS, isAI: true, targetX: 0, targetY: 0, name: "AI" };
+        let puck = { x: 0, y: 0, vx: 0, vy: 0, radius: PUCK_RADIUS };
+
+        let gameMode = 'menu'; 
+        let localPlayerRole = null; // 'host' or 'client'
+        let animationFrameId;
+
+        // --- PeerJS関連 ---
+        let peer; // 自身のPeerオブジェクト
+        let conn; // 相手とのConnectionオブジェクト
+        let myPeerId = null;
+        let hostPeerIdToConnect = null; // クライアントが接続するホストのID
+        // --- PeerJS関連ここまで ---
+
+
+        function cleanupPeerResources() {
+            if (conn) { conn.close(); conn = null; }
+            if (peer) { peer.destroy(); peer = null; }
+            myPeerId = null;
+            hostPeerIdToConnect = null;
+        }
+
+
+        function resizeCanvas() {
+            const container = document.getElementById('gameContainer');
+            const aspectRatio = 2 / 3;
+            let newWidth = container.clientWidth;
+            let newHeight = newWidth / aspectRatio;
+            if (newHeight > window.innerHeight * 0.7) {
+                newHeight = window.innerHeight * 0.7;
+                newWidth = newHeight * aspectRatio;
+            }
+            canvas.width = newWidth; canvas.height = newHeight;
+            canvasWidth = canvas.width; canvasHeight = canvas.height;
+            PADDLE_RADIUS = canvasWidth / 20; PUCK_RADIUS = canvasWidth / 27; GOAL_WIDTH = canvasWidth / 4;
+            player1.radius = PADDLE_RADIUS; player2.radius = PADDLE_RADIUS; puck.radius = PUCK_RADIUS;
+            if(gameMode !== 'menu') initGameElements(); else drawField();
+        }
+
+        function initGameElements() {
+            player1.x = canvasWidth / 2; player1.y = canvasHeight * 0.85;
+            player1.targetX = player1.x; player1.targetY = player1.y;
+            player2.x = canvasWidth / 2; player2.y = canvasHeight * 0.15;
+            player2.targetX = player2.x; player2.targetY = player2.y;
+            resetPuck();
+        }
+
+        function resetPuck(servingPlayer = null) {
+            puck.x = canvasWidth / 2; puck.y = canvasHeight / 2;
+            let speed = canvasWidth / 100;
+            if (servingPlayer === 1) puck.vy = speed;
+            else if (servingPlayer === 2) puck.vy = -speed;
+            else puck.vy = (Math.random() > 0.5 ? 1 : -1) * speed;
+            puck.vx = (Math.random() > 0.5 ? 1 : -1) * speed * 0.7;
+        }
+
+        function resetGame(isAIopponent) {
+            player1.score = 0; player2.score = 0;
+            player2.isAI = isAIopponent;
+            player2.name = isAIopponent ? "AI" : "友達";
+            updateScoreDisplay();
+            initGameElements();
+            if (gameMode === 'p2p_playing' && localPlayerRole === 'host' && conn && conn.open) {
+                 sendP2PData({ type: 'game_reset_p2p' });
+            }
+        }
+
+        function updateScoreDisplay() {
+            let p1DisplayName = player1.name;
+            let p2DisplayName = player2.name;
+            let p1DisplayScore = player1.score;
+            let p2DisplayScore = player2.score;
+
+            if (localPlayerRole === 'client' && gameMode === 'p2p_playing') { // クライアント視点
+                p1DisplayName = player2.name; // 自分(P2)が下、名前は「あなた」など
+                p2DisplayName = player1.name; // 相手(P1)が上、名前は「友達」など
+                p1DisplayScore = player2.score;
+                p2DisplayScore = player1.score;
+            }
+            scoreDisplay.textContent = `${p1DisplayName}: ${p1DisplayScore} - ${p2DisplayName}: ${p2DisplayScore}`;
+        }
+
+        function drawCircle(x, y, radius, color) { /* ( আগের মতই ) */ ctx.beginPath(); ctx.arc(x,y,radius,0,Math.PI*2); ctx.fillStyle=color; ctx.fill(); ctx.closePath(); }
+        function drawField() { /* ( আগের মতই ) */ ctx.clearRect(0,0,canvasWidth,canvasHeight); ctx.beginPath(); ctx.moveTo(0,canvasHeight/2); ctx.lineTo(canvasWidth,canvasHeight/2); ctx.strokeStyle='#ccc'; ctx.lineWidth=2; ctx.stroke(); ctx.beginPath(); ctx.arc(canvasWidth/2,canvasHeight/2,canvasWidth/8,0,Math.PI*2); ctx.stroke(); ctx.fillStyle='lightgrey'; const gh=PUCK_RADIUS*1.5; ctx.fillRect((canvasWidth-GOAL_WIDTH)/2,0,GOAL_WIDTH,gh); ctx.fillRect((canvasWidth-GOAL_WIDTH)/2,canvasHeight-gh,GOAL_WIDTH,gh); }
+        function updatePaddlePosition(paddle) { /* ( আগের মতই ) */ let dx=paddle.targetX-paddle.x, dy=paddle.targetY-paddle.y; paddle.x+=dx*PADDLE_SPEED_FACTOR; paddle.y+=dy*PADDLE_SPEED_FACTOR; paddle.x=Math.max(paddle.radius,Math.min(canvasWidth-paddle.radius,paddle.x)); if(paddle===player1 || (localPlayerRole==='client'&&paddle===player2)){paddle.y=Math.max(canvasHeight/2+paddle.radius,Math.min(canvasHeight-paddle.radius,paddle.y));}else{paddle.y=Math.max(paddle.radius,Math.min(canvasHeight/2-paddle.radius,paddle.y));}}
+        
+        function aiMove() {
+            if (!player2.isAI || gameMode === 'p2p_playing') return;
+            let targetX, targetY;
+            const reactionDistY = canvasHeight * 0.6;
+            const clearShotThresholdY = canvasHeight * 0.25;
+
+            if (puck.y < clearShotThresholdY && puck.vy <= 0.1 && Math.abs(puck.vx) < 1) { // 自陣深くにあり、ほぼ止まっているか自分にまっすぐ来ていない
+                targetX = canvasWidth / 2; // 相手ゴール中央方向へ
+                targetY = puck.y - player2.radius * 2; // パックの少し後ろに回り込み、強く打ち出すイメージ
+            } else if (puck.vy < 0 && puck.y < reactionDistY) {
+                targetX = puck.x; targetY = puck.y - player2.radius * 1.2;
+            } else {
+                targetX = canvasWidth / 2; targetY = canvasHeight * 0.15;
+            }
+            player2.targetX = targetX;
+            player2.targetY = Math.max(player2.radius, Math.min(canvasHeight / 2 - player2.radius, targetY));
+        }
+
+        function updateGamePhysics() { /* ( আগের মতই, গোল বিচার সহ ) */ puck.x+=puck.vx;puck.y+=puck.vy;puck.vx*=0.995;puck.vy*=0.995;if(puck.x+puck.radius>canvasWidth||puck.x-puck.radius<0){puck.vx*=-1;puck.x=(puck.x-puck.radius<0)?puck.radius:canvasWidth-puck.radius;} const gh=PUCK_RADIUS*1.5; if((puck.y+puck.radius>canvasHeight&&(puck.x<(canvasWidth-GOAL_WIDTH)/2||puck.x>(canvasWidth+GOAL_WIDTH)/2))||(puck.y-puck.radius<0&&(puck.x<(canvasWidth-GOAL_WIDTH)/2||puck.x>(canvasWidth+GOAL_WIDTH)/2))){puck.vy*=-1;puck.y=(puck.y-puck.radius<0)?puck.radius:canvasHeight-gh+puck.radius;if(puck.y+puck.radius>canvasHeight)puck.y=canvasHeight-puck.radius;} checkCollision(player1,puck);checkCollision(player2,puck); let scored=false; if(puck.y-puck.radius<gh&&puck.x>(canvasWidth-GOAL_WIDTH)/2&&puck.x<(canvasWidth+GOAL_WIDTH)/2){(localPlayerRole==='client'?player2:player1).score++;scored=true;if(localPlayerRole==='host'&&conn&&conn.open)sendP2PData({type:'score_update',scores:{player1:player1.score,player2:player2.score}});}else if(puck.y+puck.radius>canvasHeight-gh&&puck.x>(canvasWidth-GOAL_WIDTH)/2&&puck.x<(canvasWidth+GOAL_WIDTH)/2){(localPlayerRole==='client'?player1:player2).score++;scored=true;if(localPlayerRole==='host'&&conn&&conn.open)sendP2PData({type:'score_update',scores:{player1:player1.score,player2:player2.score}});} if(scored){updateScoreDisplay();checkWin();if(gameMode!=='game_over')resetPuck(((localPlayerRole==='client'?player2:player1).score>(localPlayerRole==='client'?player1:player2).score||(localPlayerRole==='client'?player1:player2).score>(localPlayerRole==='client'?player2:player1).score)?((localPlayerRole==='client'?player2:player1).score>(localPlayerRole==='client'?player1:player2).score?2:1):null);}}
+        function gameLoop() { /* ( আগের মতই, gameMode অনুযায়ী ) */ if(gameMode==='menu'){drawField();animationFrameId=requestAnimationFrame(gameLoop);return;} updatePaddlePosition(player1);if(player2.isAI&&gameMode!=='p2p_playing'){aiMove();} updatePaddlePosition(player2); if(gameMode==='ai_solo'||gameMode==='host_waiting_ai'||(gameMode==='p2p_playing'&&localPlayerRole==='host')){updateGamePhysics();if(gameMode==='p2p_playing'&&localPlayerRole==='host'&&conn&&conn.open){sendP2PData({type:'puck_state',puck:{x:puck.x,y:puck.y,vx:puck.vx,vy:puck.vy}});}} drawField();drawCircle(player1.x,player1.y,player1.radius,'blue');drawCircle(player2.x,player2.y,player2.radius,(player2.isAI&&gameMode!=='p2p_playing')?'red':(conn&&conn.open?'green':'red'));drawCircle(puck.x,puck.y,puck.radius,'black');animationFrameId=requestAnimationFrame(gameLoop);}
+        function checkCollision(paddle, puck) { /* ( আগের মতই ) */ let dx=puck.x-paddle.x,dy=puck.y-paddle.y,d=Math.sqrt(dx*dx+dy*dy);if(d<paddle.radius+puck.radius){let a=Math.atan2(dy,dx),s=canvasWidth/70;puck.vx=Math.cos(a)*s;puck.vy=Math.sin(a)*s;let o=paddle.radius+puck.radius-d+1;puck.x+=Math.cos(a)*o;puck.y+=Math.sin(a)*o;const ms=canvasWidth/30,cs=Math.sqrt(puck.vx*puck.vx+puck.vy*puck.vy);if(cs>ms){puck.vx=(puck.vx/cs)*ms;puck.vy=(puck.vy/cs)*ms;}}}
+        function checkWin() { /* ( আগের মতই, gameMode অনুযায়ী রিস্টার্ট ) */ let w=null,wn="";if(player1.score>=WINNING_SCORE){w=localPlayerRole==='client'?player2:player1;wn=w.name;}else if(player2.score>=WINNING_SCORE){w=localPlayerRole==='client'?player1:player2;wn=w.name;} if(w){const ogm=gameMode;gameStatusDisplay.textContent=`${wn} এর জয়!`;gameMode='game_over';setTimeout(()=>{if(ogm==='ai_solo'||ogm==='host_waiting_ai'){gameMode=ogm;gameStatusDisplay.textContent=player2.isAI?'AI এর সাথে খেলছেন':'বন্ধুর জন্য অপেক্ষা...';}else if(ogm==='p2p_playing'){gameMode='p2p_playing';gameStatusDisplay.textContent='P2P ম্যাচ চলছে';} if(gameMode!=='menu')resetGame(player2.isAI);},3000);}}
+        function handleMove(clientX, clientY) { /* ( আগের মতই, P2Pデータ送信 সহ ) */ if(gameMode==='menu'||gameMode==='game_over')return;const r=canvas.getBoundingClientRect();let x=(clientX-r.left)*(canvas.width/r.width),y=(clientY-r.top)*(canvas.height/r.height);let cp=player1;if(localPlayerRole==='client'&&conn&&conn.open){cp=player2;} cp.targetX=x;cp.targetY=y; if(conn&&conn.open){let px=cp.x,py=cp.y;if(localPlayerRole==='client'){px=canvasWidth-cp.x;py=canvasHeight-cp.y;} sendP2PData({type:'paddle_move',x:px,y:py});}}
+
+        canvas.addEventListener('mousemove', (e) => { if (e.buttons === 1) handleMove(e.clientX, e.clientY); });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (e.touches.length > 0) handleMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+        canvas.addEventListener('mousedown', (e) => handleMove(e.clientX, e.clientY));
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); if (e.touches.length > 0) handleMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+        
+        // --- PeerJS データ送受信 ---
+        function sendP2PData(data) {
+            if (conn && conn.open) {
+                conn.send(JSON.stringify(data));
+            }
+        }
+
+        function handleP2PData(jsonData) {
+            try {
+                const data = JSON.parse(jsonData);
+                // console.log('P2Pデータ受信:', data);
+
+                if (data.type === 'paddle_move') {
+                    if (localPlayerRole === 'host') { // ホストはクライアント(P2)の動きを受信
+                        player2.x = canvasWidth - data.x; player2.y = canvasHeight - data.y;
+                    } else if (localPlayerRole === 'client') { // クライアントはホスト(P1)の動きを受信
+                        player1.x = canvasWidth - data.x; player1.y = canvasHeight - data.y;
+                    }
+                } else if (data.type === 'puck_state') {
+                    if (localPlayerRole === 'client') {
+                        puck.x = canvasWidth - data.puck.x; puck.y = canvasHeight - data.puck.y;
+                        puck.vx = -data.puck.vx; puck.vy = -data.puck.vy;
+                    }
+                } else if (data.type === 'score_update') {
+                    // スコアは両プレイヤーがローカルで更新し、ホストからの確定情報として受け取る
+                    // (クライアント視点でのスコア更新はupdateGamePhysics内で処理済みの想定)
+                    if (localPlayerRole === 'client') { // クライアントはホストからのスコアを正として受け入れる
+                        player1.score = data.scores.player1; // P1 (ホスト) のスコア
+                        player2.score = data.scores.player2; // P2 (クライアント自身) のスコア
+                        updateScoreDisplay();
+                        resetPuck(); // クライアントもパックリセット
+                    }
+                } else if (data.type === 'game_reset_p2p') {
+                    if (localPlayerRole === 'client') { // クライアントがホストからのリセット通知を受信
+                        player1.score = 0; player2.score = 0;
+                        player2.isAI = false; player2.name = "あなた"; player1.name="友達";
+                        initGameElements(); updateScoreDisplay();
+                        gameStatusDisplay.textContent = "ホストがゲームをリセットしました。";
+                    }
+                } else if (data.type === 'game_start_ack' && localPlayerRole === 'client') {
+                    // このイベントはクライアント側の conn.on('open') で処理されるため、通常ここには来ない
+                    console.log("P2P対戦開始 (クライアント確認)");
+                    gameMode = 'p2p_playing';
+                    player2.isAI = false; player1.name = "友達"; player2.name = "あなた";
+                    gameStatusDisplay.textContent = 'P2P対戦開始！あなたはプレイヤー2です。';
+                    initialControls.classList.add('hidden'); p2pClientInfo.classList.add('hidden');
+                    resetGame(false);
+                    updateScoreDisplay();
+                }
+
+            } catch (error) {
+                console.error("P2Pデータ処理エラー:", error);
+            }
+        }
+
+
+        hostGameButton.addEventListener('click', () => {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            cleanupPeerResources(); // 前の接続をクリア
+
+            localPlayerRole = 'host';
+            gameMode = 'host_waiting_ai';
+            player1.name = "あなた (ホスト)"; player2.isAI = true; player2.name = "AI";
+            
+            initialControls.classList.add('hidden');
+            p2pHostInfo.classList.remove('hidden');
+            p2pClientInfo.classList.add('hidden');
+            
+            gameStatusDisplay.textContent = 'Peer ID取得中...';
+
+            peer = new Peer(); // 新しいPeerオブジェクトを生成
+
+            peer.on('open', (id) => {
+                myPeerId = id;
+                gameStatusDisplay.textContent = '友達の参加待ち... AIと対戦中';
+                qrCodeContainer.innerHTML = '';
+                const joinUrl = `${window.location.origin}${window.location.pathname}?join=${myPeerId}`;
+                new QRCode(qrCodeContainer, { text: joinUrl, width: 150, height: 150 });
+                roomInfoDisplay.textContent = `部屋ID(PeerID): ${myPeerId}\nURL: ${joinUrl}`;
+                
+                resizeCanvas(); resetGame(true); gameLoop();
+            });
+
+            peer.on('connection', (newConnection) => {
+                if (conn && conn.open) { // 既に誰かと接続中の場合
+                    console.log(`既に接続中のため、新しい接続 ${newConnection.peer} を拒否します。`);
+                    newConnection.send(JSON.stringify({type: 'error', message: 'Host is busy'}));
+                    setTimeout(() => newConnection.close(), 500); // 少し待ってから閉じる
+                    return;
+                }
+                
+                conn = newConnection;
+                console.log(`クライアント ${conn.peer} が接続しました。`);
+                gameStatusDisplay.textContent = `友達 (${conn.peer.substring(0,6)}...) が参加しました！`;
+                
+                conn.on('open', () => { // 接続が完全に確立されたら
+                    console.log("P2P Connection OPEN with " + conn.peer);
+                    gameMode = 'p2p_playing';
+                    player2.isAI = false; player2.name = "友達";
+                    p2pHostInfo.classList.add('hidden'); // QR表示などを隠す
+                    resetGame(false); // P2Pモードでゲームリセット
+                    sendP2PData({ type: 'game_start_ack' }); // クライアントにゲーム開始を通知
+                    updateScoreDisplay();
+                });
+                conn.on('data', handleP2PData);
+                conn.on('close', () => {
+                    gameStatusDisplay.textContent = '友達との接続が切れました。AI対戦に戻ります。';
+                    conn = null;
+                    if (gameMode === 'p2p_playing') { // P2P対戦中だった場合のみAIモードに戻る
+                         startAIWaitingModeForHost(); // ホストは再度AIと待機モードへ
+                    }
+                });
+                conn.on('error', (err) => {
+                    console.error("Connectionエラー (ホスト側):", err);
+                    gameStatusDisplay.textContent = `接続エラー: ${err.type}。AI対戦に戻ります。`;
+                    if (conn) conn.close(); conn = null;
+                     if (gameMode === 'p2p_playing') startAIWaitingModeForHost();
+                });
+            });
+            peer.on('error', handlePeerError);
+            peer.on('disconnected', () => { // Brokerサーバーから切断された場合
+                gameStatusDisplay.textContent = "P2Pサーバーから切断されました。";
+                cleanupAndShowInitialScreen();
+            });
+        });
+        
+        function startAIWaitingModeForHost(){
+            gameMode = 'host_waiting_ai';
+            player2.isAI = true;
+            player2.name = "AI";
+            gameStatusDisplay.textContent = '友達の参加待ち... AIと対戦中';
+            p2pHostInfo.classList.remove('hidden'); // QRコードなどを再表示
+            resetGame(true);
+            updateScoreDisplay();
+            // gameLoopは継続しているはず
+        }
+
+
+        cancelHostButton.addEventListener('click', cleanupAndShowInitialScreen);
+        
+        function cleanupAndShowInitialScreen() {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            cleanupPeerResources();
+            gameMode = 'menu';
+            localPlayerRole = null;
+            player1.name = "あなた"; player2.name = "AI";
+            player1.score = 0; player2.score = 0;
+            updateScoreDisplay();
+            initialControls.classList.remove('hidden');
+            p2pHostInfo.classList.add('hidden');
+            p2pClientInfo.classList.add('hidden');
+            gameStatusDisplay.textContent = 'モードを選択してください。';
+            drawField();
+            if (!animationFrameId) gameLoop(); // メニューでも描画ループを再開
+        }
+
+        function handlePeerError(err) {
+            console.error('PeerJS全体エラー:', err);
+            gameStatusDisplay.textContent = `P2Pエラー: ${err.type}。ページをリロードしてください。`;
+            cleanupPeerResources();
+            // UIを初期状態に戻す
+            initialControls.classList.remove('hidden');
+            p2pHostInfo.classList.add('hidden');
+            p2pClientInfo.classList.add('hidden');
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            gameMode = 'menu';
+        }
+
+        // --- 初期化 ---
+        window.addEventListener('resize', resizeCanvas);
+        
+        function initializeApp() {
+            const urlParams = new URLSearchParams(window.location.search);
+            hostPeerIdToConnect = urlParams.get('join'); // joinパラメータでホストIDを取得
+
+            if (hostPeerIdToConnect) { // URLにホストIDがあればクライアントとして接続試行
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                cleanupPeerResources();
+
+                localPlayerRole = 'client';
+                gameMode = 'p2p_client_joining';
+                player1.name = "友達 (ホスト)"; player2.name = "あなた"; player2.isAI = false;
+
+                initialControls.classList.add('hidden');
+                p2pHostInfo.classList.add('hidden');
+                p2pClientInfo.classList.remove('hidden');
+                joinStatusDisplay.textContent = `ホスト ${hostPeerIdToConnect.substring(0,6)}... に接続試行中...`;
+                
+                peer = new Peer(); // クライアントも自身のPeerオブジェクトを生成
+
+                peer.on('open', (id) => {
+                    myPeerId = id;
+                    console.log("クライアントのPeerID:", myPeerId, "接続先ホストID:", hostPeerIdToConnect);
+                    conn = peer.connect(hostPeerIdToConnect, { reliable: true });
+
+                    conn.on('open', () => {
+                        console.log("ホストに接続成功！(クライアント側)");
+                        gameMode = 'p2p_playing';
+                        gameStatusDisplay.textContent = 'P2P対戦開始！あなたはプレイヤー2です。';
+                        resetGame(false);
+                        updateScoreDisplay();
+                        if (!animationFrameId) gameLoop();
+                    });
+                    conn.on('data', handleP2PData);
+                    conn.on('close', () => {
+                        gameStatusDisplay.textContent = 'ホストとの接続が切れました。';
+                        cleanupAndShowInitialScreen();
+                    });
+                    conn.on('error', (err) => {
+                        console.error("Connectionエラー (クライアント側):", err);
+                        joinStatusDisplay.textContent = `接続エラー: ${err.type}`;
+                        cleanupAndShowInitialScreen();
+                    });
+                });
+                peer.on('error', handlePeerError);
+                peer.on('disconnected', () => {
+                    gameStatusDisplay.textContent = "P2Pサーバーから切断されました。";
+                    cleanupAndShowInitialScreen();
+                });
+
+            } else { // 通常起動 (ホストになるか待機)
+                gameMode = 'menu';
+                initialControls.classList.remove('hidden');
+                p2pHostInfo.classList.add('hidden');
+                p2pClientInfo.classList.add('hidden');
+                gameStatusDisplay.textContent = 'モードを選択してください。';
+            }
+            resizeCanvas();
+            if (!animationFrameId) gameLoop(); // 描画ループ開始
+        }
+        
+        initializeApp();
+
+    </script>
+</body>
+</html>
