@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>QRブロック崩しゲーム</title>
+    <title>QRブロック崩し (パンを救え！)</title>
     <style>
         body {
             display: flex;
@@ -11,126 +11,143 @@
             align-items: center;
             margin: 0;
             font-family: 'Arial', sans-serif;
-            background-color: #f0f0f0;
-            color: #333;
-            overscroll-behavior: none; /* iOS/Androidでのオーバースクロールによるページ再読み込みを防ぐ */
+            background-color: #fdf5e6; /* パンっぽいクリーム色 */
+            color: #5a3a22; /* 焦げ茶色 */
+            overscroll-behavior: none;
+            line-height: 1.6;
         }
 
         #pageContainer {
-            max-width: 500px;
+            max-width: 600px; /* 少し広めに */
             width: 100%;
-            padding: 10px;
+            padding: 15px;
             box-sizing: border-box;
+            text-align: center; /* 全体を中央寄せ */
         }
 
         #qrSection {
-            background-color: white;
+            background-color: #fff8dc; /* コーンシルク色 */
             padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            text-align: center;
+            border-radius: 12px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            margin-bottom: 25px;
         }
         #qrSection h1 {
-            font-size: 1.5em;
+            font-size: 1.8em;
             margin-top: 0;
-            color: #333;
+            color: #8b4513; /* サドルブラウン */
         }
         #qrcodeDisplay {
-            margin: 15px auto;
-            border: 5px solid #333;
-            display: inline-block; /* 中央寄せのため */
+            margin: 20px auto;
+            border: 6px solid #8b4513;
+            display: inline-block;
             background-color: white;
+            padding: 5px; /* QRコード周りの余白 */
+            border-radius: 8px;
         }
         #qrInstructions {
-            font-size: 0.9em;
-            color: #555;
+            font-size: 1em;
+            color: #704214; /* 濃いめの茶色 */
         }
         #ipInfo {
-            font-size: 0.8em;
-            color: #777;
+            font-size: 0.9em;
+            color: #a0522d; /* シエンナ */
             word-break: break-all;
+            background-color: #f5f5f5;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 10px;
+            border: 1px dashed #ccc;
+        }
+        #ipInfo strong {
+            color: #d2691e; /* チョコレート色 */
         }
 
         #gameContainer {
             position: relative;
-            border: 2px solid #333;
-            background-color: #222; /* ゲーム背景 */
-            margin: 0 auto; /* 中央寄せ */
-            touch-action: none; /* ピンチズームなどを無効化 */
-            overflow: hidden; /* Canvasのはみ出しを隠す */
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            border: 3px solid #8b4513;
+            background-color: #4a2c1a; /* 暗い茶色、ゲームの背景 */
+            margin: 0 auto;
+            touch-action: none;
+            overflow: hidden;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.25);
+            border-radius: 8px; /* ゲームコンテナにも角丸 */
         }
 
         canvas {
-            display: block; /* Canvas下の余白削除 */
+            display: block;
         }
 
         #scoreDisplay {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            font-size: 1.2em;
+            top: 12px;
+            left: 12px;
+            font-size: 1.4em; /* 少し大きく */
+            font-weight: bold;
             color: #fff;
-            text-shadow: 1px 1px 2px black;
+            text-shadow: 1px 1px 3px #333;
         }
 
         #revealContainer {
-            display: none; /* 初期状態では非表示 */
+            display: none;
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.85);
+            background-color: rgba(40, 20, 10, 0.9); /* より濃い背景 */
             flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
             color: white;
+            padding: 10px;
+            box-sizing: border-box;
         }
 
         #messageDisplay {
-            font-size: 1.8em;
-            margin-bottom: 15px;
-            text-shadow: 2px 2px 4px black;
+            font-size: 2em; /* メッセージを大きく */
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 5px black;
         }
 
         #revealedImage {
-            max-width: 85%;
-            max-height: 65%;
-            border: 3px solid white;
-            border-radius: 5px;
-            box-shadow: 0 0 15px white;
+            max-width: 90%;
+            max-height: 70%; /* 画像サイズ調整 */
+            border: 4px solid #fffacd; /* レモンシフォン色枠 */
+            border-radius: 10px;
+            box-shadow: 0 0 20px #fffacd;
         }
 
         #playAgainButton {
-            margin-top: 20px;
-            padding: 12px 25px;
-            font-size: 1.2em;
+            margin-top: 25px;
+            padding: 15px 30px;
+            font-size: 1.3em;
+            font-weight: bold;
             cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            transition: background-color 0.3s;
+            background-color: #d2b48c; /* タン色 (パンの皮っぽい) */
+            color: #5a3a22;
+            border: 2px solid #8b4513;
+            border-radius: 8px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+            transition: background-color 0.2s, transform 0.1s;
         }
         #playAgainButton:hover {
-            background-color: #45a049;
+            background-color: #c1a075;
+        }
+        #playAgainButton:active {
+            transform: translateY(1px);
         }
 
-        /* スマートフォンではQRコードセクションを小さくするか隠す */
+        /* スマホでの表示調整 */
         @media (max-width: 600px) {
-            /* body { justify-content: flex-start; } */ /* ゲームを上部に */
-            #qrSection {
-                /* display: none; */ /* スマホではQRは不要なので隠しても良い */
-                padding: 10px;
-                margin-bottom: 10px;
-            }
-            #qrSection h1 { font-size: 1.2em; }
-            #qrcodeDisplay { width: 128px !important; height: 128px !important; } /* QRコードのサイズを調整 */
-            #qrInstructions { font-size: 0.8em; }
+            #qrSection h1 { font-size: 1.5em; }
+            #qrcodeDisplay { width: 160px !important; height: 160px !important; }
+            #ipInfo { font-size: 0.8em; }
+            #scoreDisplay { font-size: 1.2em; }
+            #messageDisplay { font-size: 1.6em; }
+            #playAgainButton { font-size: 1.1em; padding: 12px 25px; }
         }
 
     </style>
@@ -138,13 +155,17 @@
 <body>
     <div id="pageContainer">
         <div id="qrSection">
-            <h1>ブロック崩しゲーム QRコード</h1>
-            <div id="qrcodeDisplay"></div>
+            <h1>QRでブロック崩し！</h1>
             <p id="qrInstructions">
-                上のQRコードをスマートフォンでスキャンしてゲームを開始してください。<br>
-                PCとスマートフォンが同じWi-Fiネットワークに接続されている必要があります。
+                このQRコードをスマートフォンで読み取って、ゲームを開始してください！<br>
+                <strong style="color: #c04000;">PCとスマートフォンが同じWi-Fiネットワークに接続されている必要があります。</strong>
             </p>
-            <p id="ipInfo">IPアドレスを検出中...</p>
+            <div id="qrcodeDisplay"></div>
+            <div id="ipInfo">
+                <strong>重要:</strong> QRコードが正しく機能するためには、このページをPCのローカルIPアドレス (例: <code>http://192.168.X.X:ポート番号/ファイル名.html</code>) で開いている必要があります。
+                <br><code>localhost</code> や <code>file:///</code> で表示している場合、スマートフォンからアクセスできません。
+                <br>現在のURL: <code id="currentUrlDisplay">検出中...</code>
+            </div>
         </div>
 
         <div id="gameContainer">
@@ -152,22 +173,17 @@
             <div id="scoreDisplay">Score: 0</div>
             <div id="revealContainer">
                 <h2 id="messageDisplay"></h2>
-                <!-- 重要: 以下の src をご自身の画像の Data URL に置き換えてください -->
-                <img id="revealedImage" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAIAAAD/gAIDAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAGESURBVCH5xNNAKARAAMN4/6FxExH0xIFIAQLx//5tQCgEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRAEQhAIQSAEgRBk/AGuUgBlmt8DjgAAAABJRU5ErkJggg==" alt="クリア画像">
-                <button id="playAgainButton">もう一度プレイ</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- QR Code Library (qrcode.min.js) -->
-    <script type="text/javascript">
-    // <!-- QRCode.js Minified - START -->
-    var QRCode;(function(){function r(t,n,r){function i(o,f){if(!n[o]){if(!t[o]){var s="function"==typeof require&&require;if(!f&&s)return s(o,!0);if(e)return e(o,!0);var u=new Error("Cannot find module '"+o+"'");throw u.code="MODULE_NOT_FOUND",u}var a=n[o]={exports:{}};t[o][0].call(a.exports,function(e){var n=t[o][1][e];return i(n?n:e)},a,a.exports,r,t,n,r)}return n[o].exports}for(var e="function"==typeof require&&require,o=0;o<r.length;o++)i(r[o]);return i}QRCode=r({1:[function(t,n,r){function i(t){this.mode=s.MODE_8BIT_BYTE,this.data=t,this.parsedData=[];for(var n=0,r=this.data.length;n<r;n++){var i=[],e=this.data.charCodeAt(n);e>65536?(i[0]=240|(1835008&e)>>>18,i[1]=128|(258048&e)>>>12,i[2]=128|(4032&e)>>>6,i[3]=128|63&e):e>2048?(i[0]=224|(61440&e)>>>12,i[1]=128|(4032&e)>>>6,i[2]=128|63&e):e>128?(i[0]=192|(1984&e)>>>6,i[1]=128|63&e):(i[0]=e),this.parsedData=this.parsedData.concat(i)}this.parsedData.length!=this.data.length&&(this.parsedData.unshift(191),this.parsedData.unshift(187),this.parsedData.unshift(239))}i.prototype={getLength:function(t){return this.parsedData.length},write:function(t){for(var n=0,r=this.parsedData.length;n<r;n++)t.put(this.parsedData[n],8)}},n.exports=i;var s=t("./mode")},{2:[function(t,n,r){function i(t,n){this.typeNumber=t,this.errorCorrectLevel=n,this.modules=null,this.moduleCount=0,this.dataCache=null,this.dataList=[]}var s=t("./utils"),e=t("./polynomial"),o=t("./errorcorrectlevel"),f=t("./bitbuffer"),u=t("./rsblock"),a=t("./datamask"),h={PATTERN_POSITION_TABLE:[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,30,58,86,110],[6,34,62,90,114],[6,30,58,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,52,78,104,130,156,182],[6,30,56,82,108,134,160,186]],G15:1335,G18:7973,G15_MASK:21522,getBCHTypeInfo:function(t){for(var n=t<<10;h.getBCHDigit(n)-h.getBCHDigit(h.G15)>=0;)n^=h.G15<<h.getBCHDigit(n)-h.getBCHDigit(h.G15);return(t<<10|n)^h.G15_MASK},getBCHTypeNumber:function(t){for(var n=t<<12;h.getBCHDigit(n)-h.getBCHDigit(h.G18)>=0;)n^=h.G18<<h.getBCHDigit(n)-h.getBCHDigit(h.G18);return t<<12|n},getBCHDigit:function(t){for(var n=0;0!=t;)n++,t>>>=1;return n},getPatternPosition:function(t){return h.PATTERN_POSITION_TABLE[t-1]},getMaskFunction:function(t){switch(t){case a.PATTERN000:return function(t,n){return(t+n)%2==0};case a.PATTERN001:return function(t,n){return t%2==0};case a.PATTERN010:return function(t,n){return n%3==0};case a.PATTERN011:return function(t,n){return(t+n)%3==0};case a.PATTERN100:return function(t,n){return(Math.floor(t/2)+Math.floor(n/3))%2==0};case a.PATTERN101:return function(t,n){return t*n%2+t*n%3==0};case a.PATTERN110:return function(t,n){return(t*n%2+t*n%3)%2==0};case a.PATTERN111:return function(t,n){return(t*n%3+(t+n)%2)%2==0};default:throw new Error("bad maskPattern:"+t)}},getErrorCorrectPolynomial:function(t){for(var n=new e([1],0),r=0;t>r;r++)n=n.multiply(new e([1,s.gexp(r)],0));return n},getLengthInBits:function(t,n){if(n>=1&&10>n)switch(t){case o.L:return[0,26,44,70,100,134,172,196,242,292][n];case o.M:return[0,20,34,54,76,102,124,146,192,232][n];case o.H:return[0,16,26,42,60,76,100,112,150,180][n];case o.Q:return[0,10,20,34,48,62,76,90,122,146][n];default:throw new Error("errorCorrectLevel:"+t)}else if(n>=10&&27>n)switch(t){case o.L:return[0,340,460,580,640,800,892,1036,1216,1336,1500,1708,1888,2132,2300,2524,2780][n-9];case o.M:return[0,272,368,464,512,608,704,832,976,1056,1200,1312,1472,1632,1792,1984,2176][n-9];case o.H:return[0,216,288,352,432,512,576,672,784,864,992,1120,1232,1376,1504,1680,1856][n-9];case o.Q:return[0,176,224,288,352,400,480,544,608,688,768,864,960,1056,1152,1296,1424][n-9];default:throw new Error("errorCorrectLevel:"+t)}else if(n>=27&&41>n)switch(t){case o.L:return[0,3092,3372,3652,3988,4276,4600,4972,5392,5764,6184,6652,7084,7564,8044][n-26];case o.M:return[0,2400,2616,2832,3084,3312,3560,3872,4160,4480,4800,5152,5488,5856,6224][n-26];case o.H:return[0,1920,2080,2272,2496,2688,2920,3168,3392,3648,3936,4224,4480,4784,5056][n-26];case o.Q:return[0,1504,1648,1824,2000,2160,2320,2560,2768,2992,3216,3456,3696,3952,4208][n-26];default:throw new Error("errorCorrectLevel:"+t)}else throw new Error("typeNumber:"+n)},getLostPoint:function(t){for(var n=t.getModuleCount(),r=0,i=0;n>i;i++)for(var s=0;n>s;s++){for(var e=0,o=t.isDark(i,s),f=-1;1>=f;f++)if(!(0>i+f||i+f>=n))for(var u=-1;1>=u;u++)0>s+u||s+u>=n||(0!=f||0!=u)&&o==t.isDark(i+f,s+u)&&e++;e>5&&(r+=3+e-5)}for(var i=0;n-1>i;i++)for(var s=0;n-1>s;s++){var a=0;t.isDark(i,s)&&a++,t.isDark(i+1,s)&&a++,t.isDark(i,s+1)&&a++,t.isDark(i+1,s+1)&&a++,(0==a||4==a)&&(r+=3)}for(var i=0;n>i;i++)for(var s=0;n-6>s;s++)t.isDark(i,s)&&!t.isDark(i,s+1)&&t.isDark(i,s+2)&&t.isDark(i,s+3)&&t.isDark(i,s+4)&&!t.isDark(i,s+5)&&t.isDark(i,s+6)&&(r+=40);for(var s=0;n>s;s++)for(var i=0;n-6>i;i++)t.isDark(i,s)&&!t.isDark(i+1,s)&&t.isDark(i+2,s)&&t.isDark(i+3,s)&&t.isDark(i+4,s)&&!t.isDark(i+5,s)&&t.isDark(i+6,s)&&(r+=40);for(var h=0,s=0;n>s;s++)for(var i=0;n>i;i++)t.isDark(i,s)&&h++;var l=Math.abs(100*h/n/n-50)/5;return r+=10*l}};i.prototype={addData:function(t){var n=new(t(require("./qrcodecapacity")))(t);this.dataList.push(n),this.dataCache=null},isDark:function(t,n){return t>=0&&t<this.moduleCount&&n>=0&&n<this.moduleCount?this.modules[t][n]:!1},getModuleCount:function(){return this.moduleCount},make:function(){if(this.typeNumber<1){for(var t=1,n=s.getRSBlocks(this.typeNumber,this.errorCorrectLevel),i=new f,e=0;e<n.length;e++)i.put(n[e].dataCount,8),i.put(n[e].totalCount-n[e].dataCount,8);for(var o=0,a=0;a<this.dataList.length;a++){var l=this.dataList[a];o+=l.getLength()}for(;;){if(o<=h.getLengthInBits(this.errorCorrectLevel,t)){this.typeNumber=t;break}if(t++,t>40)throw new Error("Too long data")}},this.makeImpl(!1,this.getBestMaskPattern())},makeImpl:function(t,n){this.moduleCount=4*this.typeNumber+17,this.modules=new Array(this.moduleCount);for(var r=0;r<this.moduleCount;r++){this.modules[r]=new Array(this.moduleCount);for(var i=0;i<this.moduleCount;i++)this.modules[r][i]=null}this.setupPositionProbePattern(0,0),this.setupPositionProbePattern(this.moduleCount-7,0),this.setupPositionProbePattern(0,this.moduleCount-7),this.setupPositionAdjustPattern(),this.setupTimingPattern(),this.setupTypeInfo(t,n),this.typeNumber>=7&&this.setupTypeNumber(t),null==this.dataCache&&(this.dataCache=i.createData(this.typeNumber,this.errorCorrectLevel,this.dataList)),this.mapData(this.dataCache,n)},setupPositionProbePattern:function(t,n){for(var r=-1;7>=r;r++)if(!(0>t+r||t+r>=this.moduleCount))for(var i=-1;7>=i;i++)0>n+i||n+i>=this.moduleCount||(r>=0&&6>=r&&(0==i||6==i)||i>=0&&6>=i&&(0==r||6==r)||r>=2&&4>=r&&i>=2&&4>=i?this.modules[t+r][n+i]=!0:this.modules[t+r][n+i]=!1)},getBestMaskPattern:function(){for(var t=0,n=0,r=0;8>r;r++){this.makeImpl(!0,r);var i=h.getLostPoint(this);(0==r||t>i)&&(t=i,n=r)}return n},createMovieClip:function(t,n,r){var i=t.createEmptyMovieClip(n,r),s=1;this.make();for(var e=0;e<this.modules.length;e++)for(var o=e*s,f=0;f<this.modules[e].length;f++){var u=f*s,a=this.modules[e][f];a&&(i.beginFill(0,100),i.moveTo(u,o),i.lineTo(u+s,o),i.lineTo(u+s,o+s),i.lineTo(u,o+s),i.endFill())}return i},setupTimingPattern:function(){for(var t=8;this.moduleCount-8>t;t++)null==this.modules[t][6]&&(this.modules[t][6]=t%2==0);for(var n=8;this.moduleCount-8>n;n++)null==this.modules[6][n]&&(this.modules[6][n]=n%2==0)},setupPositionAdjustPattern:function(){for(var t=h.getPatternPosition(this.typeNumber),n=0;n<t.length;n++)for(var r=0;r<t.length;r++){var i=t[n],s=t[r];if(null==this.modules[i][s])for(var e=-2;2>=e;e++)for(var o=-2;2>=o;o+=-2==e||2==e||-2==o||2==o?this.modules[i+e][s+o]=!0:this.modules[i+e][s+o]=!1}},setupTypeNumber:function(t){for(var n=h.getBCHTypeNumber(this.typeNumber),r=0;18>r;r++){var i=!t&&1==(n>>r&1);this.modules[Math.floor(r/3)][r%3+this.moduleCount-8-3]=i}for(var r=0;18>r;r++){var i=!t&&1==(n>>r&1);this.modules[r%3+this.moduleCount-8-3][Math.floor(r/3)]=i}},setupTypeInfo:function(t,n){for(var r=this.errorCorrectLevel<<3|n,i=h.getBCHTypeInfo(r),s=0;15>s;s++){var e=!t&&1==(i>>s&1);8>s?this.modules[s][8]=e:this.modules[s+1][8]=e,6>s?this.modules[8][this.moduleCount-1-s]=e:this.modules[8][this.moduleCount-1-s-1]=e}this.modules[this.moduleCount-8][8]=!t},mapData:function(t,n){for(var r=-1,i=this.moduleCount-1,s=7,e=0,o=this.moduleCount-1,f=h.getMaskFunction(n);o>0;o-=2)for(6==o&&o--;;){for(var u=0;2>u;u++){var a=i-u;if(null==this.modules[a][o]){var l=!1;e<t.length&&(l=1==(t[e]>>>s&1));f(a,o)&&(l=!l),this.modules[a][o]=l,s--,(-1==s)&&(e++,s=7)}}if(i+=r,0>i||i>=this.moduleCount){i-=r,r=-r;break}}}},i.PAD0=236,i.PAD1=17,i.createData=function(t,n,e){for(var o=u.getRSBlocks(t,n),a=new f,h=0;h<e.length;h++){var l=e[h];a.put(l.mode,4),a.put(l.getLength(),s.getLengthInBits(l.mode,t)),l.write(a)}for(var c=0,h=0;h<o.length;h++)c+=o[h].totalCount;if(a.getLengthInBits()>8*c)throw new Error("code length overflow. ("+a.getLengthInBits()+">"+8*c+")");for(a.getLengthInBits()+4<=8*c&&a.put(0,4);a.getLengthInBits()%8!=0;)a.putBit(!1);for(;;){if(a.getLengthInBits()>=8*c)break;if(a.put(i.PAD0,8),a.getLengthInBits()>=8*c)break;a.put(i.PAD1,8)}return i.createBytes(a,o)},i.createBytes=function(t,n){for(var r=0,i=0,o=0,f=new Array(n.length),u=new Array(n.length),a=0;a<n.length;a++){var l=n[a].dataCount,c=n[a].totalCount-l;i=Math.max(i,l),o=Math.max(o,c),f[a]=new Array(l);for(var g=0;g<f[a].length;g++)f[a][g]=255&t.buffer[g+r];r+=l;var d=s.getErrorCorrectPolynomial(c),m=new e(f[a],d.getLength()-1),p=m.mod(d);u[a]=new Array(d.getLength()-1);for(var g=0;g<u[a].length;g++){var v=g+p.getLength()-u[a].length;u[a][g]=v>=0?p.get(v):0}}for(var w=new Array(n[0].totalCount),y=0,g=0;g<Math.max(t.buffer.length,n[0].totalCount);g++)for(var a=0;a<n.length;a++)g<f[a].length&&(w[y++]=f[a][g]);for(var g=0;o>g;g++)for(var a=0;a<n.length;a++)g<u[a].length&&(w[y++]=u[a][g]);return w},n.exports=i;var c=t("./mode"),g=t("./polynomial"),d=t("./rsblock"),m=t("./errorcorrectlevel"),p=t("./bitbuffer"),v=t("./utils")},{"./bitbuffer":3,"./datamask":4,"./errorcorrectlevel":5,"./mode":7,"./polynomial":8,"./qrcodecapacity":9,"./rsblock":10,"./utils":11}],3:[function(t,n,r){function i(t){this.buffer=new Array,this.length=0}i.prototype={get:function(t){var n=Math.floor(t/8);return 1==(this.buffer[n]>>>7-t%8&1)},put:function(t,n){for(var r=0;n>r;r++)this.putBit(1==(t>>>n-r-1&1))},getLengthInBits:function(){return this.length},putBit:function(t){var n=Math.floor(this.length/8);this.buffer.length<=n&&this.buffer.push(0),t&&(this.buffer[n]|=128>>>this.length%8),this.length++}},n.exports=i},{}],4:[function(t,n,r){n.exports={PATTERN000:0,PATTERN001:1,PATTERN010:2,PATTERN011:3,PATTERN100:4,PATTERN101:5,PATTERN110:6,PATTERN111:7}},{}],5:[function(t,n,r){n.exports={L:1,M:0,Q:3,H:2}},{}],6:[function(t,n,r){var i=t("./utils"),s=t("./errorcorrectlevel"),e=t("./qrcode"),o=t("./qrcodedata"),f=function(t,n){n=n||{},this.options=n;var r=s.H;n.errorCorrectionLevel!==void 0&&(r=[s.L,s.M,s.Q,s.H][["L","M","Q","H"].indexOf(n.errorCorrectionLevel)]);var f=new e(-1,r);f.addData(new o(t)),f.make(),this._qrcode=f,this._htOption=n};f.prototype.makeImage=function(){return this._qrcode?this._htOption.drawer.draw(this._qrcode,this._htOption):void 0},f.prototype.makeTable=function(){var t="";if(this._qrcode){var n=this._qrcode.getModuleCount();t+='<table class="qrcode-table">';for(var r=0;n>r;r++){t+="<tr>";for(var i=0;n>i;i++)t+='<td style="width:1px;height:1px;'+(this._qrcode.isDark(r,i)?"background-color:#000000;":"background-color:#ffffff;")+'"></td>';t+="</tr>"}t+="</table>"}return t},f.prototype.makeSvg=function(){if(!this._qrcode)return"";var t=this._qrcode.getModuleCount(),n=this.options.margin||0,r=this.options.width||t+2*n,i=this.options.height||t+2*n,s=this.options.colorDark||"#000000",e=this.options.colorLight||"#ffffff",o='<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="'+r+'px" height="'+i+'px" viewBox="0 0 '+(t+2*n)+" "+(t+2*n)+'">',f='<rect width="100%" height="100%" fill="'+e+'"/>',u='<path d="',a="";for(var h=0;t>h;h++)for(var l=0;t>l;l++)this._qrcode.isDark(h,l)&&(a+="M"+(l+n)+","+(h+n)+"h1v1h-1z");return o+f+u+a+'" stroke="0" fill="'+s+'"/></svg>'},f.prototype.toString=function(t){if(this._qrcode){var n,r=t||"text";switch(r.toLowerCase()){case"svg":n=this.makeSvg();break;case"table":n=this.makeTable();break;case"text":default:for(var i=this._qrcode.getModuleCount(),s="██",e="  ",o="",f=0;i>f;f++){for(var u=0;i>u;u++)o+=this._qrcode.isDark(f,u)?s:e;o+="\n"}n=o}}return n},n.exports=f;var u=t("./utils"),a=t("./errorcorrectlevel"),h=t("./qrcode"),l=t("./qrcodedata")},{"./errorcorrectlevel":5,"./qrcode":2,"./qrcodedata":1,"./utils":11}],7:[function(t,n,r){n.exports={MODE_NUMBER:1,MODE_ALPHA_NUM:2,MODE_8BIT_BYTE:4,MODE_KANJI:8}},{}],8:[function(t,n,r){function i(t,n){if(void 0==t.length)throw new Error(t.length+"/"+n);for(var r=0;r<t.length&&0==t[r];)r++;this.num=new Array(t.length-r+n);for(var i=0;i<t.length-r;i++)this.num[i]=t[i+r]}var s=t("./utils");i.prototype={get:function(t){return this.num[t]},getLength:function(){return this.num.length},multiply:function(t){for(var n=new Array(this.getLength()+t.getLength()-1),r=0;r<this.getLength();r++)for(var e=0;e<t.getLength();e++)n[r+e]^=s.gexp(s.glog(this.get(r))+s.glog(t.get(e)));return new i(n,0)},mod:function(t){if(this.getLength()-t.getLength()<0)return this;for(var n=s.glog(this.get(0))-s.glog(t.get(0)),r=new Array(this.getLength()),e=0;e<this.getLength();e++)r[e]=this.get(e);for(var e=0;e<t.getLength();e++)r[e]^=s.gexp(n+s.glog(t.get(e)));return new i(r,0).mod(t)}},n.exports=i},{"./utils":11}],9:[function(require,module,exports){module.exports=require("./mode")},{}],10:[function(t,n,r){function i(t,n,r,i,s){var e=new Object;return e.totalCount=t,e.dataCount=n,e.count=r,e.typeNumber=i,e.errorCorrectLevel=s,e.getBlockDataCount=function(){return Math.round(n/r)},e.getBlockTotalCount=function(){return Math.round(t/r)},e}var s=t("./errorcorrectlevel");n.exports={getRSBlocks:function(t,n){var r=function(t,n){switch(n){case s.L:return[[1,26,19],[1,26,16],[1,26,13],[1,26,9]][t];case s.M:return[[1,20,15],[1,20,12],[1,20,9],[1,20,7]][t];case s.H:return[[1,16,12],[1,16,9],[1,16,7],[1,16,5]][t];case s.Q:return[[1,10,7],[1,10,6],[1,10,4],[1,10,3]][t];default:return}}(n,t);if(void 0==r)throw new Error("bad rs block @ typeNumber:"+t+"/errorCorrectLevel:"+n);for(var e=new Array,o=0;o<r.length;o++)for(var f=r[o][0],u=r[o][1],a=r[o][2],h=0;f>h;h++)e.push(i(u,a,1,t,n));return e}}},{"./errorcorrectlevel":5}],11:[function(t,n,r){var i={glog:function(t){if(1>t)throw new Error("glog("+t+")");return i.LOG_TABLE[t]},gexp:function(t){for(;0>t;)t+=255;for(;t>=256;)t-=255;return i.EXP_TABLE[t]},EXP_TABLE:new Array(256),LOG_TABLE:new Array(256)};(function(){for(var t=0;8>t;t++)i.EXP_TABLE[t]=1<<t;for(var t=8;256>t;t++)i.EXP_TABLE[t]=i.EXP_TABLE[t-4]^i.EXP_TABLE[t-5]^i.EXP_TABLE[t-6]^i.EXP_TABLE[t-8];for(var t=0;255>t;t++)i.LOG_TABLE[i.EXP_TABLE[t]]=t})(),n.exports=i},{}],12:[function(t,n,r){function i(t,n){"string"==typeof t&&(n=t,t=void 0);var r="";if(t&&"object"==typeof t||(t={}),t.text&&"string"==typeof t.text||(t.text=n),"string"!=typeof t.text)throw new Error("Expected a string for the text parameter");if(""===t.text)return"";var s=t.width;s||(s=t.height),s||(s=256);var e=t.height;e||(e=t.width),e||(e=256);var o=t.colorDark;void 0===o&&(o="#000000");var u=t.colorLight;void 0===u&&(u="#ffffff");var h=t.correctLevel;if(["L","M","Q","H"].indexOf(h)>-1||(h="H"),"object"!=typeof t.drawer&&(t.drawer="鼈"===unescape("%u9f08")?f:a),this._oDrawing=new t.drawer(this._el,t),t.render){case"canvas":r=this._oDrawing.draw(new e(t.text,{errorCorrectionLevel:h,drawer:t.drawer}),t);break;case"svg":r=this._oDrawing.draw(new e(t.text,{errorCorrectionLevel:h,drawer:t.drawer}),t);break;case"table":default:r=this._oDrawing.draw(new e(t.text,{errorCorrectionLevel:h,drawer:t.drawer}),t)}return r}function s(t,n){if(this._el=t,void 0===n.drawer&&(n.drawer=f),this.options=n,this.options.width=this.options.width||256,this.options.height=this.options.height||256,this.options.typeNumber=this.options.typeNumber||-1,this.options.correctLevel=this.options.correctLevel||a.H,this.options.colorDark=this.options.colorDark||"#000000",this.options.colorLight=this.options.colorLight||"#ffffff",this.options.text=this.options.text||"",this.options.drawer=this.options.drawer,this.options.drawer.isCanvas&&this.options.drawer.isSVG)throw"Conflict draw method";this.clear()}if("undefined"!=typeof HTMLCanvasElement||"undefined"!=typeof Canvas){var e=t("./qrcode");s.prototype.draw=function(t,n){var r=this._el.getContext("2d");if(!r)throw"HTMLCanvasElement does not support getContext('2d')";var i=n.width/t.getModuleCount();n.height/t.getModuleCount()<i&&(i=n.height/t.getModuleCount());var s=(n.width-t.getModuleCount()*i)/2,e=(n.height-t.getModuleCount()*i)/2;r.lineWidth=1,r.fillStyle=n.colorLight,r.fillRect(0,0,n.width,n.height),r.fillStyle=n.colorDark;for(var o=0;o<t.getModuleCount();o++)for(var f=0;f<t.getModuleCount();f++)t.isDark(o,f)&&r.fillRect(s+f*i,e+o*i,i,i)},s.prototype.clear=function(){var t=this._el.getContext("2d");t&&t.clearRect(0,0,this._el.width,this._el.height)},s.isCanvas=!0}var o=t("./qrcode");if("undefined"!=typeof SVGElement){var f=function(t,n){this._el=t,this.options=n};f.prototype.draw=function(t,n){var r=t.getModuleCount(),i=n.margin||0,s=n.width||r+2*i,e=n.height||r+2*i,o=n.colorDark||"#000000",f=n.colorLight||"#ffffff",u='<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="'+s+'px" height="'+e+'px" viewBox="0 0 '+(r+2*i)+" "+(r+2*i)+'">',a='<rect width="100%" height="100%" fill="'+f+'"/>',h='<path d="',l="";for(var c=0;r>c;c++)for(var g=0;r>g;g++)t.isDark(c,g)&&(l+="M"+(g+i)+","+(c+i)+"h1v1h-1z");this._el.innerHTML=u+a+h+l+'" stroke="0" fill="'+o+'"/></svg>'},f.prototype.clear=function(){this._el.innerHTML=""},f.isSVG=!0}var u="<table>";s.prototype.draw=function(t,n){for(var r=n.width/t.getModuleCount(),i=n.height/t.getModuleCount(),s="",e=0;e<t.getModuleCount();e++){s+="<tr>";for(var o=0;o<t.getModuleCount();o++)s+='<td style="width:'+r+"px;height:"+i+"px;"+(t.isDark(e,o)?"background-color:"+n.colorDark+";":"background-color:"+n.colorLight+";")+'"></td>';s+="</tr>"}this._el.innerHTML=s+u},s.prototype.clear=function(){this._el.innerHTML=""};var a=t("./errorcorrectlevel");n.exports=i,i.CorrectLevel=a,i.Drawer=s},{"./errorcorrectlevel":5,"./qrcode":2}]},{},[12])(12)})();
+                <!-- パンの画像 (Base64 Data URL) -->
+                <img id="revealedImage" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIbGNtcwIQAABtbnRyUkdCIFhZWiAH4gADABQACQAOAB1hY3NwTVNGVAAAAABIUUhMAAAAAAAAAAAAAAAAAAAAძლAAAAAADJMAAAAAPPLAAAAAAA8cAAAAAIARUMAAAAAAAAAAAAAY3VydgAAAAAAAAABAc0AAABDAAAAULUAAAYILSRZYgAAAExMAABDYgAAQ2IAAEthSBRYSRV0AAABhAAAABZGVzYwAAAAAAAAALPGFyYXBsdAAAAAAADCRjaGFkAAAAZAAAACxkZXNjAAAAAAAAABhXaXJlbGVzcyBTcG9ydCBTeXN0ZW0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHRleHQAAAAARkIAAFhZWiAAAAAAAAD21gABAAAAANrmWFlaIAAAAAAAAACSfQAAPAAAAAAVWFlaIAAAAAAAAFHHAAAPAAAAADxYWVogAAAAAAAAZAAAAAABAAVFeGZ0ZXh0AAAAAEFGQUQoQ09QWVJJR0hUKGMpIE5JQ09MRVRPLCBBcHJpbCAxOTk3LiBBbGwgUmlnaHRzIFJlc2VydmVkLgBCMwAAABRjaHJtAAAAAAABAAAADAAAAAQAAAAIAAAAAAAuZHNjbQAAAGAAAADsZHNjbQAAAGAAAADsYXBwbAAAAAYAAAAAAAABbmRpbgAAACAAAAAhbmRpbgsAAACOAAAAmG1hY2sAAAAKAAAAAm1tb2QAAAAEAAAAAWEAAADnCmNrcHQAAAEAAAAAR2NwcnQAAAEwAAAAJHRleHQAAAAAQ09QWVJJR0hUKEMpIDE5OTggSGV3bGV0dC1QYWNrYXJkIENvbXBhbnkAAGRlc2MAAAAAAAAADUhQQ00tUkdCLk1PEHRleHQAAAAAU0RFRCBieSBBRkFJRCAtIEludGVybmF0aW9uYWwgQ29sZWFuaW5naG91c2UgZm9yIGJhbGFuY2VkIHVubmlmb3JtaXR5IGluIGNvbG9yIGltYWdlIHRyYW5zbWlzc2lvbgAAWFlaIAAAAAAAAPNRAAEAAAABFsxYWVogAAAAAAAAg98AAD2/////u1hZWiAAAAAAAABKvwAAsTcAAAq5WFlaIAAAAAAAACg4AAARCwAAyLljdXJ2AAAAAAAABAAAAAAFAAoADwAUABkAHgAjACgALQAyADcAOwBAAEUASgBPAFQAWQBeAGMAaABtAHIAdwB8AIEAhgCLAJAAlQCaAJ8ApACpAK4AsgC3ALwAwQDGAMsA0ADVANsA4ADlAOsA8AD2APsBAQEHAQ0BEwEZAR8BJQErATIBOAE+AUUBTAFSAVkBYAFnAW4BdQF8AYMBiwGSAZoBoQGpAbEBuQHBAckB0QHZAeEB6QHyAfoCAwIMAhQCHQImAi8COAJBAksCVAJdAmcCcQJ6AoQCjgKYAqICrAK2AsECywLVAuAC6wL1AwADCwMWAyEDLQM4A0MDTwNaA2YDcgN+A4oDlgOiA64DugPHA9MD4APsA/kEBgQTBCAELQQ7BEgEVQRjBHEEfgSMBJoEqAS2BMQE0wThBPAE/gUNBRwFKwU6BUkFWAVnBXcFhgWWBaYFtQXFBdUF5QX2BgYGFgYnBjcGSAZZBmoGewaMBp0GrwbABtEG4wb1BwcHGQcrBz0HTwdhB3QHhgeZB6wHvwfSB+UH+AgLCB8IMghGCFoIbgiCCJYIqgi+CNII5wj7CRAJJQk6CU8JZAl5CY8JpAm6Cc8J5Qn7ChEKJwo9ClQKagqBCpgKrgrFCtwK8wsLCyILOQtRC2kLgAuYC7ALyAvhC/kMEgwqDEMMXAx1DI4MpwzADNkM8w0NDSYNQA1aDXQNjg2pDcMN3g34DhMOLg5JDmQOfw6bDrYO0g7uDwkPJQ9eD3oPlg+zD88P7BAJECYQQxBhEH4QmxC5ENcQ9RETET4RPxFNEVsxZBFt薙uEYZRphHJEfYSDxKOEpool5Sc8J6woRCiMKKAo2CkoKWgpsChoKPyhYCFoIWghciGgIZghpCHgIiQiNiJ4IpoioCK2I24i5CN+JQIhZiHOIshiyCL4Ix0jOiNmI7IjxiPqJCojeSR5JGkkaniSaJonmgxJNpRxkRnRxiRHOkdfR/xIdkj6SVVKcEk9SsRKnEramjCcnJ2ck5yR/JLYlBCV+JbglBiWEJYQlxiWJRQmZiWJRQkIiYsJFRUYxRpxGbEikTORPvEysTVxNsE/xRdxKR0qQSpVKkYqWkqaSq9K2EsYSy5LMk6yUHRTAlNiVHBVuVrhWvFeAV5JXRlZKV45XpWFlYpFgpWSlbKVxZWElZwVz5XQ1fMWYZYkFiXWLpYAlmKWZVYvRiDmMWYyJjRmRGRedGdlZ/xlVGYMY6ZmmltGZ5JtZnlWfpaBlpGWaZad1p1WqRa11q2WwFXXVaY1r1WxdZ21sPGysbM9t0W1pbdxt4s3lxfTGeKY4RjxmPgY+hpZSjpKOkY6Rj0gYmxhXGJ8Y4Rj5mLKZeZg5mj2Z2Z7Zn9mgWaEBoMmgiaKJooWkhqSGoZahnWGdwZ3FneWhRZmFqaWitZa1pbaFtaoZ2XnZGdl52gGaBZoMGhoWGhwZHFkeShtZmltaW1oa2xrWGtda2ZrdWVydWp7Z2lva29vb3dzdWt7b3x5fH9+f4BHgGWBB4ElgQuBCYJXgpuCZ4J6ghOCC4IWghuCFIIVghmCG4Icgh2CIYIjgi2CL4I0gjnCPsJEwknCToJUIk6CV8JUAl8CX4JkQmPCZPJmAmZCZsJpAmrCc8J5QnnCfsKEAojCi8KLwoxCiMKNgpKCkoKWgpqCngKiQqcCroKxgrsCvMLCwsZCysLHAsoSysLKwsoCzkLOgs4SzoOOgs+gMAMgwADHAMPgxADEwMjgxfDLkM0wxjDGcMmgyuDMwM2pzZzNGM0mzSjNMM2MzQjNRM2IzaTNoM2gzajNtM2gzaDNyM3ozfjOKA4cDiMOJw4mDiQOEw4iDiIOMg4yDiYOMg4iDiYOMg4yDjgOEw4mDiYOJA4WDiYOJg4SDhIOIg4SDhQOEg4QDhEOCg4CDgIOCg4CDg4ECAwIBAgMCAgID/4AAwDAQACEQMRAD8Aqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq/user/client/v2/common/common.js
+ * @param {object} options
+ * @return {object} QRCode element
+ */
+var QRCode;(function(){function r(t,n,r){function i(o,f){if(!n[o]){if(!t[o]){var s="function"==typeof require&&require;if(!f&&s)return s(o,!0);if(e)return e(o,!0);var u=new Error("Cannot find module '"+o+"'");throw u.code="MODULE_NOT_FOUND",u}var a=n[o]={exports:{}};t[o][0].call(a.exports,function(e){var n=t[o][1][e];return i(n?n:e)},a,a.exports,r,t,n,r)}return n[o].exports}for(var e="function"==typeof require&&require,o=0;o<r.length;o++)i(r[o]);return i}QRCode=r({1:[function(t,n,r){function i(t){this.mode=s.MODE_8BIT_BYTE,this.data=t,this.parsedData=[];for(var n=0,r=this.data.length;n<r;n++){var i=[],e=this.data.charCodeAt(n);e>65536?(i[0]=240|(1835008&e)>>>18,i[1]=128|(258048&e)>>>12,i[2]=128|(4032&e)>>>6,i[3]=128|63&e):e>2048?(i[0]=224|(61440&e)>>>12,i[1]=128|(4032&e)>>>6,i[2]=128|63&e):e>128?(i[0]=192|(1984&e)>>>6,i[1]=128|63&e):(i[0]=e),this.parsedData=this.parsedData.concat(i)}this.parsedData.length!=this.data.length&&(this.parsedData.unshift(191),this.parsedData.unshift(187),this.parsedData.unshift(239))}i.prototype={getLength:function(t){return this.parsedData.length},write:function(t){for(var n=0,r=this.parsedData.length;n<r;n++)t.put(this.parsedData[n],8)}},n.exports=i;var s=t("./mode")},{2:[function(t,n,r){function i(t,n){this.typeNumber=t,this.errorCorrectLevel=n,this.modules=null,this.moduleCount=0,this.dataCache=null,this.dataList=[]}var s=t("./utils"),e=t("./polynomial"),o=t("./errorcorrectlevel"),f=t("./bitbuffer"),u=t("./rsblock"),a=t("./datamask"),h={PATTERN_POSITION_TABLE:[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,30,58,86,110],[6,34,62,90,114],[6,30,58,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,52,78,104,130,156,182],[6,30,56,82,108,134,160,186]],G15:1335,G18:7973,G15_MASK:21522,getBCHTypeInfo:function(t){for(var n=t<<10;h.getBCHDigit(n)-h.getBCHDigit(h.G15)>=0;)n^=h.G15<<h.getBCHDigit(n)-h.getBCHDigit(h.G15);return(t<<10|n)^h.G15_MASK},getBCHTypeNumber:function(t){for(var n=t<<12;h.getBCHDigit(n)-h.getBCHDigit(h.G18)>=0;)n^=h.G18<<h.getBCHDigit(n)-h.getBCHDigit(h.G18);return t<<12|n},getBCHDigit:function(t){for(var n=0;0!=t;)n++,t>>>=1;return n},getPatternPosition:function(t){return h.PATTERN_POSITION_TABLE[t-1]},getMaskFunction:function(t){switch(t){case a.PATTERN000:return function(t,n){return(t+n)%2==0};case a.PATTERN001:return function(t,n){return t%2==0};case a.PATTERN010:return function(t,n){return n%3==0};case a.PATTERN011:return function(t,n){return(t+n)%3==0};case a.PATTERN100:return function(t,n){return(Math.floor(t/2)+Math.floor(n/3))%2==0};case a.PATTERN101:return function(t,n){return t*n%2+t*n%3==0};case a.PATTERN110:return function(t,n){return(t*n%2+t*n%3)%2==0};case a.PATTERN111:return function(t,n){return(t*n%3+(t+n)%2)%2==0};default:throw new Error("bad maskPattern:"+t)}},getErrorCorrectPolynomial:function(t){for(var n=new e([1],0),r=0;t>r;r++)n=n.multiply(new e([1,s.gexp(r)],0));return n},getLengthInBits:function(t,n){if(n>=1&&10>n)switch(t){case o.L:return[0,26,44,70,100,134,172,196,242,292][n];case o.M:return[0,20,34,54,76,102,124,146,192,232][n];case o.H:return[0,16,26,42,60,76,100,112,150,180][n];case o.Q:return[0,10,20,34,48,62,76,90,122,146][n];default:throw new Error("errorCorrectLevel:"+t)}else if(n>=10&&27>n)switch(t){case o.L:return[0,340,460,580,640,800,892,1036,1216,1336,1500,1708,1888,2132,2300,2524,2780][n-9];case o.M:return[0,272,368,464,512,608,704,832,976,1056,1200,1312,1472,1632,1792,1984,2176][n-9];case o.H:return[0,216,288,352,432,512,576,672,784,864,992,1120,1232,1376,1504,1680,1856][n-9];case o.Q:return[0,176,224,288,352,400,480,544,608,688,768,864,960,1056,1152,1296,1424][n-9];default:throw new Error("errorCorrectLevel:"+t)}else if(n>=27&&41>n)switch(t){case o.L:return[0,3092,3372,3652,3988,4276,4600,4972,5392,5764,6184,6652,7084,7564,8044][n-26];case o.M:return[0,2400,2616,2832,3084,3312,3560,3872,4160,4480,4800,5152,5488,5856,6224][n-26];case o.H:return[0,1920,2080,2272,2496,2688,2920,3168,3392,3648,3936,4224,4480,4784,5056][n-26];case o.Q:return[0,1504,1648,1824,2000,2160,2320,2560,2768,2992,3216,3456,3696,3952,4208][n-26];default:throw new Error("errorCorrectLevel:"+t)}else throw new Error("typeNumber:"+n)},getLostPoint:function(t){for(var n=t.getModuleCount(),r=0,i=0;n>i;i++)for(var s=0;n>s;s++){for(var e=0,o=t.isDark(i,s),f=-1;1>=f;f++)if(!(0>i+f||i+f>=n))for(var u=-1;1>=u;u++)0>s+u||s+u>=n||(0!=f||0!=u)&&o==t.isDark(i+f,s+u)&&e++;e>5&&(r+=3+e-5)}for(var i=0;n-1>i;i++)for(var s=0;n-1>s;s++){var a=0;t.isDark(i,s)&&a++,t.isDark(i+1,s)&&a++,t.isDark(i,s+1)&&a++,t.isDark(i+1,s+1)&&a++,(0==a||4==a)&&(r+=3)}for(var i=0;n>i;i++)for(var s=0;n-6>s;s++)t.isDark(i,s)&&!t.isDark(i,s+1)&&t.isDark(i,s+2)&&t.isDark(i,s+3)&&t.isDark(i,s+4)&&!t.isDark(i,s+5)&&t.isDark(i,s+6)&&(r+=40);for(var s=0;n>s;s++)for(var i=0;n-6>i;i++)t.isDark(i,s)&&!t.isDark(i+1,s)&&t.isDark(i+2,s)&&t.isDark(i+3,s)&&t.isDark(i+4,s)&&!t.isDark(i+5,s)&&t.isDark(i+6,s)&&(r+=40);for(var h=0,s=0;n>s;s++)for(var i=0;n>i;i++)t.isDark(i,s)&&h++;var l=Math.abs(100*h/n/n-50)/5;return r+=10*l}};i.prototype={addData:function(t){var n=new(t(require("./qrcodecapacity")))(t);this.dataList.push(n),this.dataCache=null},isDark:function(t,n){return t>=0&&t<this.moduleCount&&n>=0&&n<this.moduleCount?this.modules[t][n]:!1},getModuleCount:function(){return this.moduleCount},make:function(){if(this.typeNumber<1){for(var t=1,n=s.getRSBlocks(this.typeNumber,this.errorCorrectLevel),i=new f,e=0;e<n.length;e++)i.put(n[e].dataCount,8),i.put(n[e].totalCount-n[e].dataCount,8);for(var o=0,a=0;a<this.dataList.length;a++){var l=this.dataList[a];o+=l.getLength()}for(;;){if(o<=h.getLengthInBits(this.errorCorrectLevel,t)){this.typeNumber=t;break}if(t++,t>40)throw new Error("Too long data")}},this.makeImpl(!1,this.getBestMaskPattern())},makeImpl:function(t,n){this.moduleCount=4*this.typeNumber+17,this.modules=new Array(this.moduleCount);for(var r=0;r<this.moduleCount;r++){this.modules[r]=new Array(this.moduleCount);for(var i=0;i<this.moduleCount;i++)this.modules[r][i]=null}this.setupPositionProbePattern(0,0),this.setupPositionProbePattern(this.moduleCount-7,0),this.setupPositionProbePattern(0,this.moduleCount-7),this.setupPositionAdjustPattern(),this.setupTimingPattern(),this.setupTypeInfo(t,n),this.typeNumber>=7&&this.setupTypeNumber(t),null==this.dataCache&&(this.dataCache=i.createData(this.typeNumber,this.errorCorrectLevel,this.dataList)),this.mapData(this.dataCache,n)},setupPositionProbePattern:function(t,n){for(var r=-1;7>=r;r++)if(!(0>t+r||t+r>=this.moduleCount))for(var i=-1;7>=i;i++)0>n+i||n+i>=this.moduleCount||(r>=0&&6>=r&&(0==i||6==i)||i>=0&&6>=i&&(0==r||6==r)||r>=2&&4>=r&&i>=2&&4>=i?this.modules[t+r][n+i]=!0:this.modules[t+r][n+i]=!1)},getBestMaskPattern:function(){for(var t=0,n=0,r=0;8>r;r++){this.makeImpl(!0,r);var i=h.getLostPoint(this);(0==r||t>i)&&(t=i,n=r)}return n},createMovieClip:function(t,n,r){var i=t.createEmptyMovieClip(n,r),s=1;this.make();for(var e=0;e<this.modules.length;e++)for(var o=e*s,f=0;f<this.modules[e].length;f++){var u=f*s,a=this.modules[e][f];a&&(i.beginFill(0,100),i.moveTo(u,o),i.lineTo(u+s,o),i.lineTo(u+s,o+s),i.lineTo(u,o+s),i.endFill())}return i},setupTimingPattern:function(){for(var t=8;this.moduleCount-8>t;t++)null==this.modules[t][6]&&(this.modules[t][6]=t%2==0);for(var n=8;this.moduleCount-8>n;n++)null==this.modules[6][n]&&(this.modules[6][n]=n%2==0)},setupPositionAdjustPattern:function(){for(var t=h.getPatternPosition(this.typeNumber),n=0;n<t.length;n++)for(var r=0;r<t.length;r++){var i=t[n],s=t[r];if(null==this.modules[i][s])for(var e=-2;2>=e;e++)for(var o=-2;2>=o;o+=-2==e||2==e||-2==o||2==o?this.modules[i+e][s+o]=!0:this.modules[i+e][s+o]=!1}},setupTypeNumber:function(t){for(var n=h.getBCHTypeNumber(this.typeNumber),r=0;18>r;r++){var i=!t&&1==(n>>r&1);this.modules[Math.floor(r/3)][r%3+this.moduleCount-8-3]=i}for(var r=0;18>r;r++){var i=!t&&1==(n>>r&1);this.modules[r%3+this.moduleCount-8-3][Math.floor(r/3)]=i}},setupTypeInfo:function(t,n){for(var r=this.errorCorrectLevel<<3|n,i=h.getBCHTypeInfo(r),s=0;15>s;s++){var e=!t&&1==(i>>s&1);8>s?this.modules[s][8]=e:this.modules[s+1][8]=e,6>s?this.modules[8][this.moduleCount-1-s]=e:this.modules[8][this.moduleCount-1-s-1]=e}this.modules[this.moduleCount-8][8]=!t},mapData:function(t,n){for(var r=-1,i=this.moduleCount-1,s=7,e=0,o=this.moduleCount-1,f=h.getMaskFunction(n);o>0;o-=2)for(6==o&&o--;;){for(var u=0;2>u;u++){var a=i-u;if(null==this.modules[a][o]){var l=!1;e<t.length&&(l=1==(t[e]>>>s&1));f(a,o)&&(l=!l),this.modules[a][o]=l,s--,(-1==s)&&(e++,s=7)}}if(i+=r,0>i||i>=this.moduleCount){i-=r,r=-r;break}}}},i.PAD0=236,i.PAD1=17,i.createData=function(t,n,e){for(var o=u.getRSBlocks(t,n),a=new f,h=0;h<e.length;h++){var l=e[h];a.put(l.mode,4),a.put(l.getLength(),s.getLengthInBits(l.mode,t)),l.write(a)}for(var c=0,h=0;h<o.length;h++)c+=o[h].totalCount;if(a.getLengthInBits()>8*c)throw new Error("code length overflow. ("+a.getLengthInBits()+">"+8*c+")");for(a.getLengthInBits()+4<=8*c&&a.put(0,4);a.getLengthInBits()%8!=0;)a.putBit(!1);for(;;){if(a.getLengthInBits()>=8*c)break;if(a.put(i.PAD0,8),a.getLengthInBits()>=8*c)break;a.put(i.PAD1,8)}return i.createBytes(a,o)},i.createBytes=function(t,n){for(var r=0,i=0,o=0,f=new Array(n.length),u=new Array(n.length),a=0;a<n.length;a++){var l=n[a].dataCount,c=n[a].totalCount-l;i=Math.max(i,l),o=Math.max(o,c),f[a]=new Array(l);for(var g=0;g<f[a].length;g++)f[a][g]=255&t.buffer[g+r];r+=l;var d=s.getErrorCorrectPolynomial(c),m=new e(f[a],d.getLength()-1),p=m.mod(d);u[a]=new Array(d.getLength()-1);for(var g=0;g<u[a].length;g++){var v=g+p.getLength()-u[a].length;u[a][g]=v>=0?p.get(v):0}}for(var w=new Array(n[0].totalCount),y=0,g=0;g<Math.max(t.buffer.length,n[0].totalCount);g++)for(var a=0;a<n.length;a++)g<f[a].length&&(w[y++]=f[a][g]);for(var g=0;o>g;g++)for(var a=0;a<n.length;a++)g<u[a].length&&(w[y++]=u[a][g]);return w},n.exports=i;var c=t("./mode"),g=t("./polynomial"),d=t("./rsblock"),m=t("./errorcorrectlevel"),p=t("./bitbuffer"),v=t("./utils")},{"./bitbuffer":3,"./datamask":4,"./errorcorrectlevel":5,"./mode":7,"./polynomial":8,"./qrcodecapacity":9,"./rsblock":10,"./utils":11}],3:[function(t,n,r){function i(t){this.buffer=new Array,this.length=0}i.prototype={get:function(t){var n=Math.floor(t/8);return 1==(this.buffer[n]>>>7-t%8&1)},put:function(t,n){for(var r=0;n>r;r++)this.putBit(1==(t>>>n-r-1&1))},getLengthInBits:function(){return this.length},putBit:function(t){var n=Math.floor(this.length/8);this.buffer.length<=n&&this.buffer.push(0),t&&(this.buffer[n]|=128>>>this.length%8),this.length++}},n.exports=i},{}],4:[function(t,n,r){n.exports={PATTERN000:0,PATTERN001:1,PATTERN010:2,PATTERN011:3,PATTERN100:4,PATTERN101:5,PATTERN110:6,PATTERN111:7}},{}],5:[function(t,n,r){n.exports={L:1,M:0,Q:3,H:2}},{}],6:[function(t,n,r){var i=t("./utils"),s=t("./errorcorrectlevel"),e=t("./qrcode"),o=t("./qrcodedata"),f=function(t,n){n=n||{},this.options=n;var r=s.H;n.errorCorrectionLevel!==void 0&&(r=[s.L,s.M,s.Q,s.H][["L","M","Q","H"].indexOf(n.errorCorrectionLevel)]);var f=new e(-1,r);f.addData(new o(t)),f.make(),this._qrcode=f,this._htOption=n};f.prototype.makeImage=function(){return this._qrcode?this._htOption.drawer.draw(this._qrcode,this._htOption):void 0},f.prototype.makeTable=function(){var t="";if(this._qrcode){var n=this._qrcode.getModuleCount();t+='<table class="qrcode-table">';for(var r=0;n>r;r++){t+="<tr>";for(var i=0;n>i;i++)t+='<td style="width:1px;height:1px;'+(this._qrcode.isDark(r,i)?"background-color:#000000;":"background-color:#ffffff;")+'"></td>';t+="</tr>"}t+="</table>"}return t},f.prototype.makeSvg=function(){if(!this._qrcode)return"";var t=this._qrcode.getModuleCount(),n=this.options.margin||0,r=this.options.width||t+2*n,i=this.options.height||t+2*n,s=this.options.colorDark||"#000000",e=this.options.colorLight||"#ffffff",o='<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="'+r+'px" height="'+i+'px" viewBox="0 0 '+(t+2*n)+" "+(t+2*n)+'">',f='<rect width="100%" height="100%" fill="'+e+'"/>',u='<path d="',a="";for(var h=0;t>h;h++)for(var l=0;t>l;l++)this._qrcode.isDark(h,l)&&(a+="M"+(l+n)+","+(h+n)+"h1v1h-1z");return o+f+u+a+'" stroke="0" fill="'+s+'"/></svg>'},f.prototype.toString=function(t){if(this._qrcode){var n,r=t||"text";switch(r.toLowerCase()){case"svg":n=this.makeSvg();break;case"table":n=this.makeTable();break;case"text":default:for(var i=this._qrcode.getModuleCount(),s="██",e="  ",o="",f=0;i>f;f++){for(var u=0;i>u;u++)o+=this._qrcode.isDark(f,u)?s:e;o+="\n"}n=o}}return n},n.exports=f;var u=t("./utils"),a=t("./errorcorrectlevel"),h=t("./qrcode"),l=t("./qrcodedata")},{"./errorcorrectlevel":5,"./qrcode":2,"./qrcodedata":1,"./utils":11}],7:[function(t,n,r){n.exports={MODE_NUMBER:1,MODE_ALPHA_NUM:2,MODE_8BIT_BYTE:4,MODE_KANJI:8}},{}],8:[function(t,n,r){function i(t,n){if(void 0==t.length)throw new Error(t.length+"/"+n);for(var r=0;r<t.length&&0==t[r];)r++;this.num=new Array(t.length-r+n);for(var i=0;i<t.length-r;i++)this.num[i]=t[i+r]}var s=t("./utils");i.prototype={get:function(t){return this.num[t]},getLength:function(){return this.num.length},multiply:function(t){for(var n=new Array(this.getLength()+t.getLength()-1),r=0;r<this.getLength();r++)for(var e=0;e<t.getLength();e++)n[r+e]^=s.gexp(s.glog(this.get(r))+s.glog(t.get(e)));return new i(n,0)},mod:function(t){if(this.getLength()-t.getLength()<0)return this;for(var n=s.glog(this.get(0))-s.glog(t.get(0)),r=new Array(this.getLength()),e=0;e<this.getLength();e++)r[e]=this.get(e);for(var e=0;e<t.getLength();e++)r[e]^=s.gexp(n+s.glog(t.get(e)));return new i(r,0).mod(t)}},n.exports=i},{"./utils":11}],9:[function(require,module,exports){module.exports=require("./mode")},{}],10:[function(t,n,r){function i(t,n,r,i,s){var e=new Object;return e.totalCount=t,e.dataCount=n,e.count=r,e.typeNumber=i,e.errorCorrectLevel=s,e.getBlockDataCount=function(){return Math.round(n/r)},e.getBlockTotalCount=function(){return Math.round(t/r)},e}var s=t("./errorcorrectlevel");n.exports={getRSBlocks:function(t,n){var r=function(t,n){switch(n){case s.L:return[[1,26,19],[1,26,16],[1,26,13],[1,26,9]][t];case s.M:return[[1,20,15],[1,20,12],[1,20,9],[1,20,7]][t];case s.H:return[[1,16,12],[1,16,9],[1,16,7],[1,16,5]][t];case s.Q:return[[1,10,7],[1,10,6],[1,10,4],[1,10,3]][t];default:return}}(n,t);if(void 0==r)throw new Error("bad rs block @ typeNumber:"+t+"/errorCorrectLevel:"+n);for(var e=new Array,o=0;o<r.length;o++)for(var f=r[o][0],u=r[o][1],a=r[o][2],h=0;f>h;h++)e.push(i(u,a,1,t,n));return e}}},{"./errorcorrectlevel":5}],11:[function(t,n,r){var i={glog:function(t){if(1>t)throw new Error("glog("+t+")");return i.LOG_TABLE[t]},gexp:function(t){for(;0>t;)t+=255;for(;t>=256;)t-=255;return i.EXP_TABLE[t]},EXP_TABLE:new Array(256),LOG_TABLE:new Array(256)};(function(){for(var t=0;8>t;t++)i.EXP_TABLE[t]=1<<t;for(var t=8;256>t;t++)i.EXP_TABLE[t]=i.EXP_TABLE[t-4]^i.EXP_TABLE[t-5]^i.EXP_TABLE[t-6]^i.EXP_TABLE[t-8];for(var t=0;255>t;t++)i.LOG_TABLE[i.EXP_TABLE[t]]=t})(),n.exports=i},{}],12:[function(t,n,r){function i(t,n){"string"==typeof t&&(n=t,t=void 0);var r="";if(t&&"object"==typeof t||(t={}),t.text&&"string"==typeof t.text||(t.text=n),"string"!=typeof t.text)throw new Error("Expected a string for the text parameter");if(""===t.text)return"";var s=t.width;s||(s=t.height),s||(s=256);var e=t.height;e||(e=t.width),e||(e=256);var o=t.colorDark;void 0===o&&(o="#000000");var u=t.colorLight;void 0===u&&(u="#ffffff");var h=t.correctLevel;if(["L","M","Q","H"].indexOf(h)>-1||(h="H"),"object"!=typeof t.drawer&&(t.drawer="鼈"===unescape("%u9f08")?f:a),this._oDrawing=new t.drawer(this._el,t),t.render){case"canvas":r=this._oDrawing.draw(new e(t.text,{errorCorrectionLevel:h,drawer:t.drawer}),t);break;case"svg":r=this._oDrawing.draw(new e(t.text,{errorCorrectionLevel:h,drawer:t.drawer}),t);break;case"table":default:r=this._oDrawing.draw(new e(t.text,{errorCorrectionLevel:h,drawer:t.drawer}),t)}return r}function s(t,n){if(this._el=t,void 0===n.drawer&&(n.drawer=f),this.options=n,this.options.width=this.options.width||256,this.options.height=this.options.height||256,this.options.typeNumber=this.options.typeNumber||-1,this.options.correctLevel=this.options.correctLevel||a.H,this.options.colorDark=this.options.colorDark||"#000000",this.options.colorLight=this.options.colorLight||"#ffffff",this.options.text=this.options.text||"",this.options.drawer=this.options.drawer,this.options.drawer.isCanvas&&this.options.drawer.isSVG)throw"Conflict draw method";this.clear()}if("undefined"!=typeof HTMLCanvasElement||"undefined"!=typeof Canvas){var e=t("./qrcode");s.prototype.draw=function(t,n){var r=this._el.getContext("2d");if(!r)throw"HTMLCanvasElement does not support getContext('2d')";var i=n.width/t.getModuleCount();n.height/t.getModuleCount()<i&&(i=n.height/t.getModuleCount());var s=(n.width-t.getModuleCount()*i)/2,e=(n.height-t.getModuleCount()*i)/2;r.lineWidth=1,r.fillStyle=n.colorLight,r.fillRect(0,0,n.width,n.height),r.fillStyle=n.colorDark;for(var o=0;o<t.getModuleCount();o++)for(var f=0;f<t.getModuleCount();f++)t.isDark(o,f)&&r.fillRect(s+f*i,e+o*i,i,i)},s.prototype.clear=function(){var t=this._el.getContext("2d");t&&t.clearRect(0,0,this._el.width,this._el.height)},s.isCanvas=!0}var o=t("./qrcode");if("undefined"!=typeof SVGElement){var f=function(t,n){this._el=t,this.options=n};f.prototype.draw=function(t,n){var r=t.getModuleCount(),i=n.margin||0,s=n.width||r+2*i,e=n.height||r+2*i,o=n.colorDark||"#000000",f=n.colorLight||"#ffffff",u='<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="'+s+'px" height="'+e+'px" viewBox="0 0 '+(r+2*i)+" "+(r+2*i)+'">',a='<rect width="100%" height="100%" fill="'+f+'"/>',h='<path d="',l="";for(var c=0;r>c;c++)for(var g=0;r>g;g++)t.isDark(c,g)&&(l+="M"+(g+i)+","+(c+i)+"h1v1h-1z");this._el.innerHTML=u+a+h+l+'" stroke="0" fill="'+o+'"/></svg>'},f.prototype.clear=function(){this._el.innerHTML=""},f.isSVG=!0}var u="<table>";s.prototype.draw=function(t,n){for(var r=n.width/t.getModuleCount(),i=n.height/t.getModuleCount(),s="",e=0;e<t.getModuleCount();e++){s+="<tr>";for(var o=0;o<t.getModuleCount();o++)s+='<td style="width:'+r+"px;height:"+i+"px;"+(t.isDark(e,o)?"background-color:"+n.colorDark+";":"background-color:"+n.colorLight+";")+'"></td>';s+="</tr>"}this._el.innerHTML=s+u},s.prototype.clear=function(){this._el.innerHTML=""};var a=t("./errorcorrectlevel");n.exports=i,i.CorrectLevel=a,i.Drawer=s},{"./errorcorrectlevel":5,"./qrcode":2}]},{},[12])(12)})();
     // <!-- QRCode.js Minified - END -->
     </script>
 
     <script>
-        // --- Global Variables ---
+        // --- DOM Elements ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const gameContainer = document.getElementById('gameContainer');
@@ -178,122 +194,116 @@
         const messageDisplay = document.getElementById('messageDisplay');
         const qrcodeDisplayElement = document.getElementById('qrcodeDisplay');
         const ipInfoElement = document.getElementById('ipInfo');
+        const currentUrlDisplayElement = document.getElementById('currentUrlDisplay');
 
+        // --- Game State & Config ---
         let animationFrameId;
         let score = 0;
         let gameStarted = false;
+        let lives = 3; // Not implemented in UI fully, but good for gameOver logic
 
-        // --- Game Dimensions ---
-        // Adjusted to fit within typical phone screens, maintaining aspect ratio
-        const aspectRatio = 9 / 16; // Portrait
-        let baseCanvasWidth = Math.min(window.innerWidth * 0.95, 450);
-        if (window.innerHeight < window.innerWidth) { // Landscape likely on PC
-            baseCanvasWidth = Math.min(window.innerHeight * 0.8, 450); // Use height as basis
+        // Canvas dimensions (responsive)
+        const aspectRatio = 9 / 16; // Portrait aspect ratio for game
+        let baseCanvasWidth = Math.min(window.innerWidth * 0.95, 480); // Max width
+         if (window.innerHeight < window.innerWidth && !isTouchDevice()) { // Likely PC in landscape
+            baseCanvasWidth = Math.min(window.innerHeight * 0.7, 480);
         }
 
         let canvasWidth = baseCanvasWidth;
         let canvasHeight = canvasWidth / aspectRatio;
 
-        // If calculated height is too much for the viewport, adjust based on height
-        if (canvasHeight > window.innerHeight * 0.85) {
-            canvasHeight = window.innerHeight * 0.85;
+        // Adjust if too tall for viewport
+        if (canvasHeight > window.innerHeight * 0.80) {
+            canvasHeight = window.innerHeight * 0.80;
             canvasWidth = canvasHeight * aspectRatio;
         }
-        // Ensure canvas is not wider than the game container (which is pageContainer width)
         const pageContainerWidth = document.getElementById('pageContainer').offsetWidth;
-        if (canvasWidth > pageContainerWidth) {
-            canvasWidth = pageContainerWidth * 0.98; // A little padding
+        if (canvasWidth > pageContainerWidth * 0.98) {
+            canvasWidth = pageContainerWidth * 0.98;
             canvasHeight = canvasWidth / aspectRatio;
         }
 
-
-        canvas.width = canvasWidth;
-        canvas.height = canvasHeight;
+        canvas.width = Math.floor(canvasWidth);
+        canvas.height = Math.floor(canvasHeight);
         gameContainer.style.width = canvas.width + 'px';
         gameContainer.style.height = canvas.height + 'px';
 
-        // --- Ball ---
+        // Ball properties
         let ball = {
             x: canvas.width / 2,
             y: canvas.height - 50,
-            radius: Math.max(5, Math.min(canvas.width, canvas.height) * 0.018),
-            speed: Math.max(3, Math.min(canvas.width, canvas.height) * 0.007),
+            radius: Math.max(6, Math.min(canvas.width, canvas.height) * 0.02), // Slightly larger ball
+            speed: Math.max(3.5, Math.min(canvas.width, canvas.height) * 0.0075), // Slightly faster
             dx: 0,
             dy: 0
         };
 
-        // --- Paddle ---
+        // Paddle properties
         let paddle = {
-            height: Math.max(8, Math.min(canvas.width, canvas.height) * 0.022),
-            width: Math.max(50, canvas.width * 0.22),
-            x: (canvas.width - (canvas.width * 0.22)) / 2,
-            speed: Math.max(5, Math.min(canvas.width, canvas.height) * 0.018),
-            dx: 0 // Not used in touch control, but kept for potential keyboard add
+            height: Math.max(10, Math.min(canvas.width, canvas.height) * 0.025),
+            width: Math.max(60, canvas.width * 0.25), // Wider paddle
+            x: (canvas.width - (canvas.width * 0.25)) / 2,
+            // speed: (not directly used for touch, but for reference)
         };
 
-        // --- Bricks ---
-        const brickRowCount = 5;
-        const brickColumnCount = 6;
-        const brickPadding = canvas.width * 0.01;
-        const brickOffsetTop = canvas.height * 0.06;
-        const brickOffsetLeft = canvas.width * 0.05;
-        let brickWidth = (canvas.width - 2 * brickOffsetLeft - (brickColumnCount -1) * brickPadding) / brickColumnCount;
-        let brickHeight = Math.max(10, canvas.height * 0.028);
+        // Brick properties
+        const brickRowCount = 6; // More rows
+        const brickColumnCount = 7; // More columns
+        const brickPadding = Math.max(2, canvas.width * 0.008);
+        const brickOffsetTop = Math.max(20, canvas.height * 0.07);
+        const brickOffsetLeft = Math.max(10, canvas.width * 0.04);
+        let brickWidth = (canvas.width - 2 * brickOffsetLeft - (brickColumnCount - 1) * brickPadding) / brickColumnCount;
+        brickWidth = Math.max(10, brickWidth); // Minimum brick width
+        let brickHeight = Math.max(12, canvas.height * 0.03);
         let bricks = [];
 
-        // --- QR Code Generation ---
-        function setupQRCode() {
-            const defaultGameUrl = window.location.href; // QR will point to the current page
-            let gameUrlToEncode = defaultGameUrl;
-            const hostname = window.location.hostname;
-            const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
-            const protocol = window.location.protocol;
-
-            if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "") {
-                ipInfoElement.innerHTML =
-                    "<strong>PCでローカルサーバーを起動し、PCのローカルIPアドレスでこのページにアクセスしてください。</strong><br>" +
-                    "(例: http://192.168.1.X:8000/yourfile.html)<br>" +
-                    "現在のQRコードは <code>" + defaultGameUrl + "</code> を指しています。これは他のデバイスからアクセスできない可能性があります。";
-                if (hostname === "") { // file:/// protocol
-                     ipInfoElement.innerHTML += "<br><strong>警告:</strong> file:/// プロトコルではQRコードが正しく機能しない場合があります。HTTPサーバーを使用してください。";
-                }
-            } else {
-                 ipInfoElement.innerHTML =
-                    `スマートフォンでスキャンするURL (このページのURL): <br><code>${protocol}//${hostname}:${port}${window.location.pathname}</code>`;
-            }
-
-            qrcodeDisplayElement.innerHTML = ""; // Clear previous QR code
-            new QRCode(qrcodeDisplayElement, {
-                text: gameUrlToEncode,
-                width: Math.min(200, window.innerWidth * 0.5), // Responsive QR code
-                height: Math.min(200, window.innerWidth * 0.5),
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.M // M is a good balance
-            });
+        // --- Utility Functions ---
+        function isTouchDevice() {
+            return (('ontouchstart' in window) ||
+                (navigator.maxTouchPoints > 0) ||
+                (navigator.msMaxTouchPoints > 0));
         }
 
+        // --- QR Code Setup ---
+        function setupQRCode() {
+            const currentURL = window.location.href;
+            currentUrlDisplayElement.textContent = currentURL;
+            qrcodeDisplayElement.innerHTML = ""; // Clear previous QR
 
-        // --- Game Functions ---
+            const qrSize = Math.min(180, window.innerWidth * 0.4);
+
+            new QRCode(qrcodeDisplayElement, {
+                text: currentURL,
+                width: qrSize,
+                height: qrSize,
+                colorDark : "#5a3a22", // Dark brown for QR
+                colorLight : "#fff8dc", // Light background for QR
+                correctLevel : QRCode.CorrectLevel.M
+            });
+
+            // Additional instructions based on hostname
+            const hostname = window.location.hostname;
+            if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "") {
+                 ipInfoElement.innerHTML += "<br><strong style='color:red;'>警告: 現在のURLでは、他のデバイスからアクセスできない可能性が高いです。PCのローカルIPアドレスを使用してこのページを開き直してください。</strong><br>（例: <code>http://192.168.1.10:8000/your_file_name.html</code>）";
+            }
+        }
+
+        // --- Game Logic ---
         function initBricks() {
             bricks = [];
+            const brickColors = ["#ffb366", "#ffd699", "#ffe0b3", "#ffecb3", "#fff5cc", "#fffde6"]; // Gradients of bread crust/crumb
             for (let c = 0; c < brickColumnCount; c++) {
                 bricks[c] = [];
                 for (let r = 0; r < brickRowCount; r++) {
-                    bricks[c][r] = { x: 0, y: 0, status: 1, color: getRandomBrickColor() };
+                    bricks[c][r] = { x: 0, y: 0, status: 1, color: brickColors[r % brickColors.length] };
                 }
             }
-        }
-
-        function getRandomBrickColor() {
-            const colors = ['#FF5733', '#FFC300', '#DAF7A6', '#7DCEA0', '#5DADE2', '#C39BD3'];
-            return colors[Math.floor(Math.random() * colors.length)];
         }
 
         function drawBall() {
             ctx.beginPath();
             ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#00DDFF'; // Bright blue
+            ctx.fillStyle = '#d2691e'; // "Chocolate" color for ball (like a chocochip)
             ctx.fill();
             ctx.closePath();
         }
@@ -301,7 +311,7 @@
         function drawPaddle() {
             ctx.beginPath();
             ctx.rect(paddle.x, canvas.height - paddle.height - 10, paddle.width, paddle.height);
-            ctx.fillStyle = '#FFA500'; // Orange
+            ctx.fillStyle = '#8b4513'; // "SaddleBrown" for paddle (darker crust)
             ctx.fill();
             ctx.closePath();
         }
@@ -318,6 +328,9 @@
                         ctx.rect(brickX, brickY, brickWidth, brickHeight);
                         ctx.fillStyle = bricks[c][r].color;
                         ctx.fill();
+                        ctx.strokeStyle = "#5a3a22"; // Darker outline for bricks
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(brickX, brickY, brickWidth, brickHeight);
                         ctx.closePath();
                     }
                 }
@@ -333,7 +346,7 @@
                             ball.y + ball.radius > b.y && ball.y - ball.radius < b.y + brickHeight) {
                             ball.dy = -ball.dy;
                             b.status = 0;
-                            score++;
+                            score += 10; // Add points per brick
                             scoreDisplay.textContent = `Score: ${score}`;
                             if (checkWin()) {
                                 gameWon();
@@ -356,24 +369,43 @@
         function showEndScreen(message, showImage = true) {
             messageDisplay.textContent = message;
             revealedImage.style.display = showImage ? 'block' : 'none';
-            playAgainButton.textContent = showImage ? "もう一度プレイ" : "もう一度挑戦";
+            playAgainButton.textContent = showImage ? "パンをもっと焼く！" : "もう一度挑戦";
             revealContainer.style.display = 'flex';
             cancelAnimationFrame(animationFrameId);
             gameStarted = false;
         }
 
         function gameWon() {
-            showEndScreen("クリア！おめでとう！", true);
+            showEndScreen("やったー！美味しいパンが焼けた！", true);
         }
 
         function gameOver() {
-            showEndScreen("ゲームオーバー", false);
+            lives--; // Basic life system
+            if (lives <= 0) {
+                showEndScreen("焦げちゃった…", false);
+            } else {
+                // Reset ball and paddle for another try (if lives > 0)
+                gameStarted = false; // Stop ball movement
+                ball.x = canvas.width / 2;
+                ball.y = canvas.height - paddle.height - 10 - ball.radius - 5; // Above paddle
+                ball.dx = 0;
+                ball.dy = 0;
+                paddle.x = (canvas.width - paddle.width) / 2;
+                // Optionally display lives remaining
+                // alert(`残り ${lives} 回！`);
+                // For now, just restart the update loop for pre-start state
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                updateGame();
+            }
         }
+
 
         function updateGame() {
             if (!gameStarted) {
+                // Ball follows paddle before game starts
                 ball.x = paddle.x + paddle.width / 2;
-                ball.y = canvas.height - paddle.height - 10 - ball.radius - 1;
+                ball.y = canvas.height - paddle.height - 10 - ball.radius - 2;
+                // Draw initial state
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 drawBricks();
                 drawPaddle();
@@ -382,8 +414,6 @@
                 return;
             }
 
-            // Move paddle (already handled by touch)
-
             // Move ball
             ball.x += ball.dx;
             ball.y += ball.dy;
@@ -391,32 +421,34 @@
             // Wall collision (left/right)
             if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) {
                 ball.dx = -ball.dx;
-                ball.x = Math.max(ball.radius, Math.min(canvas.width - ball.radius, ball.x)); // Prevent sticking
+                ball.x = Math.max(ball.radius, Math.min(canvas.width - ball.radius, ball.x));
             }
 
             // Wall collision (top)
             if (ball.y - ball.radius < 0) {
                 ball.dy = -ball.dy;
-                ball.y = ball.radius; // Prevent sticking
-            } else if (ball.y + ball.radius > canvas.height - paddle.height - 10) { // Near paddle level
-                if (ball.x + ball.radius > paddle.x && ball.x - ball.radius < paddle.x + paddle.width && ball.y + ball.radius > canvas.height - paddle.height - 10) {
+                ball.y = ball.radius;
+            } else if (ball.y + ball.radius > canvas.height - paddle.height - 10) { // Near paddle
+                if (ball.x + ball.radius > paddle.x && ball.x - ball.radius < paddle.x + paddle.width && ball.dy > 0) {
                     // Paddle hit
                     ball.dy = -ball.dy;
-                    ball.y = canvas.height - paddle.height - 10 - ball.radius; // Place on paddle
+                    ball.y = canvas.height - paddle.height - 10 - ball.radius; // Place on paddle to prevent sticking
 
-                    // Change ball angle based on where it hits the paddle
                     let collidePoint = ball.x - (paddle.x + paddle.width / 2);
-                    collidePoint = collidePoint / (paddle.width / 2); // Normalize: -1 to 1
-                    let angle = collidePoint * (Math.PI / 3.5); // Max ~50 degree angle change
+                    collidePoint = collidePoint / (paddle.width / 2); // Normalize
+                    let angle = collidePoint * (Math.PI / 3); // Max 60 degree angle change
                     
                     ball.dx = ball.speed * Math.sin(angle);
-                    ball.dy = -ball.speed * Math.cos(angle);
-                    if (ball.dy > -0.5) ball.dy = -0.5; // Ensure it always goes up significantly
+                    // Ensure dy is always significantly upwards after paddle hit
+                    ball.dy = -Math.abs(ball.speed * Math.cos(angle)); 
+                    if (ball.dy > -ball.speed * 0.3) { // Minimum upward speed
+                        ball.dy = -ball.speed * 0.3;
+                    }
 
-                } else if (ball.y + ball.radius > canvas.height) {
-                    // Ball missed paddle and hit bottom
+
+                } else if (ball.y + ball.radius > canvas.height) { // Ball missed and hit bottom
                     gameOver();
-                    return;
+                    return; // Stop game loop if game over screen is shown
                 }
             }
 
@@ -431,73 +463,89 @@
         }
 
         function handleTouch(e) {
-            e.preventDefault(); // Important to prevent page scrolling/zooming
+            e.preventDefault();
             const touch = e.touches[0];
             const canvasRect = canvas.getBoundingClientRect();
             let relativeX = touch.clientX - canvasRect.left;
 
-            // Keep paddle within canvas boundaries
             paddle.x = relativeX - paddle.width / 2;
             if (paddle.x < 0) paddle.x = 0;
             if (paddle.x + paddle.width > canvas.width) paddle.x = canvas.width - paddle.width;
 
-            if (!gameStarted && e.type === 'touchstart') { // Start game on first touch
+            if (!gameStarted && (e.type === 'touchstart' || e.type === 'mousedown')) {
                 gameStarted = true;
-                ball.speed = Math.max(3, Math.min(canvas.width, canvas.height) * 0.007);
-                // Initial launch angle, slightly randomized
-                const initialAngle = (Math.random() * 60 + 60) * (Math.PI/180); // 60 to 120 degrees
-                ball.dx = ball.speed * Math.cos(initialAngle);
-                ball.dy = -ball.speed * Math.sin(initialAngle); // Negative for upwards
+                ball.speed = Math.max(3.5, Math.min(canvas.width, canvas.height) * 0.0075);
+                // Initial launch: straight up or slightly angled
+                const randomAngleOffset = (Math.random() - 0.5) * (Math.PI / 6); // +/- 15 degrees
+                ball.dx = ball.speed * Math.sin(randomAngleOffset);
+                ball.dy = -ball.speed * Math.cos(randomAngleOffset);
+            }
+        }
+
+        function handleMouse(e) { // For PC testing
+            const canvasRect = canvas.getBoundingClientRect();
+            let relativeX = e.clientX - canvasRect.left;
+
+            paddle.x = relativeX - paddle.width / 2;
+            if (paddle.x < 0) paddle.x = 0;
+            if (paddle.x + paddle.width > canvas.width) paddle.x = canvas.width - paddle.width;
+
+            if (!gameStarted && e.type === 'mousedown') {
+                gameStarted = true;
+                ball.speed = Math.max(3.5, Math.min(canvas.width, canvas.height) * 0.0075);
+                const randomAngleOffset = (Math.random() - 0.5) * (Math.PI / 6);
+                ball.dx = ball.speed * Math.sin(randomAngleOffset);
+                ball.dy = -ball.speed * Math.cos(randomAngleOffset);
             }
         }
 
         function resetGame() {
             score = 0;
+            lives = 3; // Reset lives
             scoreDisplay.textContent = `Score: ${score}`;
             gameStarted = false;
 
-            // Reset ball to be on the paddle
             paddle.x = (canvas.width - paddle.width) / 2;
             ball.x = paddle.x + paddle.width / 2;
-            ball.y = canvas.height - paddle.height - 10 - ball.radius -1;
+            ball.y = canvas.height - paddle.height - 10 - ball.radius - 2;
             ball.dx = 0;
             ball.dy = 0;
 
             initBricks();
-
             revealContainer.style.display = 'none';
 
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
             }
-            updateGame(); // Start the drawing loop
+            updateGame(); // Start drawing loop
         }
 
         // --- Event Listeners ---
-        canvas.addEventListener('touchstart', handleTouch, { passive: false });
-        canvas.addEventListener('touchmove', handleTouch, { passive: false });
+        if (isTouchDevice()) {
+            canvas.addEventListener('touchstart', handleTouch, { passive: false });
+            canvas.addEventListener('touchmove', handleTouch, { passive: false });
+        } else {
+            canvas.addEventListener('mousedown', handleMouse, { passive: false });
+            canvas.addEventListener('mousemove', handleMouse, { passive: false });
+        }
         playAgainButton.addEventListener('click', resetGame);
+
 
         // --- Initialization ---
         window.onload = () => {
             setupQRCode();
-            resetGame(); // Initialize game elements and start rendering
+            resetGame();
         };
 
-        // Resize handler for QR code (optional, but good for responsiveness)
+        // Optional: Responsive resize handling (basic QR update)
         let resizeTimeout;
         window.onresize = () => {
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(() => {
-                // Re-calculate canvas dimensions if needed, or just re-gen QR
-                // For simplicity, just re-gen QR here. Game resize is more complex.
+                // Re-generate QR code and update displayed URL on resize
+                // Game canvas resizing is more complex and not fully handled here to keep it simpler.
+                // For a truly responsive game, all game elements would need recalculation.
                 setupQRCode();
-
-                // Basic game canvas resize (more advanced resize would re-calculate all elements)
-                // This is a simplified resize, might need more robust logic for full responsiveness
-                // For now, we set dimensions once on load. A full resize would be:
-                // baseCanvasWidth = Math.min(window.innerWidth * 0.95, 450); ... (and all dependent calcs)
-                // resetGame();
             }, 250);
         };
 
