@@ -8,7 +8,7 @@
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; background-color: #f0f0f0; touch-action: none; -webkit-tap-highlight-color: transparent; overflow-y: hidden; }
         h1 { margin-top: 10px; margin-bottom: 5px; font-size: 1.5em; }
         #gameContainer { position: relative; width: 90vw; max-width: 400px; margin-top: 5px; }
-        canvas { border: 2px solid black; background-color: #e0e0e0; display: block; width: 100%; aspect-ratio: 2 / 3; } /* 背景色変更 */
+        canvas { border: 2px solid black; background-color: #e0e0e0; display: block; width: 100%; aspect-ratio: 2 / 3; cursor: pointer; }
         .info-area, .controls, .p2p-info { margin-top: 10px; text-align: center; width: 90%; max-width: 400px; }
         button { padding: 10px 15px; margin: 5px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; }
         button.primary { background-color: #007bff; color: white; }
@@ -36,7 +36,6 @@
 
     <div id="initialControls" class="controls">
         <button id="hostGameButton" class="primary">部屋を作成 (QR表示)</button>
-        <p style="font-size: 0.9em; margin-top: 10px;">または、友達から送られたURLで参加してください。</p>
     </div>
 
     <div id="p2pHostInfo" class="p2p-info hidden">
@@ -68,8 +67,8 @@
         // --- Game Constants and Variables ---
         let canvasWidth, canvasHeight;
         let animationFrameId;
-        let gameMode = 'menu'; // 'menu', 'host_waiting', 'host_client_connected', 'client_joining', 'client_playing', 'game_over', 'game_clear'
-        let localPlayerRole = null; // 'host', 'client'
+        let gameMode = 'menu_single'; // Default to single player start screen
+        let localPlayerRole = null; // 'host', 'client' (P2P), 'single_player'
 
         // PeerJS variables
         let peer, conn, myPeerId, hostPeerIdToConnect;
@@ -77,14 +76,14 @@
         // --- Block Breaker Game Variables ---
         let ball, paddle, bricks, score, lives;
         const PADDLE_HEIGHT = 15;
-        let PADDLE_WIDTH = 80; // Will be responsive
+        let PADDLE_WIDTH = 80;
         const BALL_RADIUS = 8;
         const BRICK_ROW_COUNT = 5;
         const BRICK_COLUMN_COUNT = 7;
         const BRICK_PADDING = 5;
         const BRICK_OFFSET_TOP = 30;
         const BRICK_OFFSET_LEFT = 30;
-        let BRICK_WIDTH, BRICK_HEIGHT; // Will be responsive
+        let BRICK_WIDTH, BRICK_HEIGHT;
         const INITIAL_LIVES = 3;
         let ballSpeedX, ballSpeedY;
 
@@ -113,19 +112,18 @@
         function mainGameLogicAndDraw() {
             ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-            if (localPlayerRole === 'client' && (gameMode === 'client_playing' || gameMode === 'game_over' || gameMode === 'game_clear')) {
-                updateBlockBreakerGame(); // Handles game logic
-                drawBlockBreakerGame();   // Handles drawing
+            if ((localPlayerRole === 'client' || localPlayerRole === 'single_player') && 
+                (gameMode === 'client_playing' || gameMode === 'game_over' || gameMode === 'game_clear')) {
+                updateBlockBreakerGame();
+                drawBlockBreakerGame();
                 if (gameMode === 'game_over') {
                     drawGameOverScreen();
                 } else if (gameMode === 'game_clear') {
                     drawGameClearScreen();
                 }
             } else if (localPlayerRole === 'host') {
-                // Host just shows status or QR
                 drawHostScreen();
-            } else if (gameMode === 'menu' || gameMode === 'client_joining') {
-                // Initial screen or client connecting screen
+            } else if (gameMode === 'menu_single' || gameMode === 'client_joining') {
                 drawMenuScreen();
             }
         }
@@ -135,28 +133,39 @@
             const aspectRatio = 2 / 3;
             let newWidth = container.clientWidth;
             let newHeight = newWidth / aspectRatio;
-            const availableHeight = window.innerHeight - (document.querySelector('h1').offsetHeight + document.querySelector('.info-area').offsetHeight + document.querySelector('.controls').offsetHeight + 50);
-            if (newHeight > availableHeight * 0.9) {
+            // Adjust available height calculation based on visible controls
+            let controlsHeight = 0;
+            if (!initialControls.classList.contains('hidden')) {
+                controlsHeight = initialControls.offsetHeight;
+            } else if (!p2pHostInfo.classList.contains('hidden')) {
+                controlsHeight = p2pHostInfo.offsetHeight;
+            } else if (!p2pClientInfo.classList.contains('hidden')) {
+                 controlsHeight = p2pClientInfo.offsetHeight;
+            }
+
+            const availableHeight = window.innerHeight - (document.querySelector('h1').offsetHeight + document.querySelector('.info-area').offsetHeight + controlsHeight + 50);
+            if (newHeight > availableHeight * 0.9 && availableHeight > 100) { // Ensure availableHeight is reasonable
                 newHeight = availableHeight * 0.9;
                 newWidth = newHeight * aspectRatio;
+            } else if (newHeight < 150) { // Minimum sensible height
+                newHeight = 150;
+                newWidth = newHeight * aspectRatio;
             }
+
+
             canvas.width = newWidth; canvas.height = newHeight;
             canvasWidth = canvas.width; canvasHeight = canvas.height;
 
-            // Make game elements responsive
             PADDLE_WIDTH = canvasWidth / 5;
             BRICK_WIDTH = (canvasWidth - BRICK_OFFSET_LEFT * 2 - BRICK_PADDING * (BRICK_COLUMN_COUNT -1) ) / BRICK_COLUMN_COUNT;
             BRICK_HEIGHT = canvasHeight / 25;
 
 
-            if (localPlayerRole === 'client' && (gameMode === 'client_playing' || gameMode === 'game_over' || gameMode === 'game_clear')) {
-                // If game was in progress, re-initialize elements based on new size
-                // This is a simplified reset. A more robust solution might try to preserve game state.
-                if (paddle) paddle.y = canvasHeight - PADDLE_HEIGHT - 10; // Keep paddle at bottom
-                // Ball speed might need adjustment too
+            if ((localPlayerRole === 'client' || localPlayerRole === 'single_player') && (paddle)) {
+                paddle.y = canvasHeight - PADDLE_HEIGHT - 10;
             }
-             // Always redraw
-            if (gameMode !== 'menu' || localPlayerRole) mainGameLogicAndDraw(); else drawMenuScreen();
+            // Redraw based on current state
+            mainGameLogicAndDraw();
         }
 
         // --- Block Breaker Specific Functions ---
@@ -173,121 +182,118 @@
                 x: canvasWidth / 2,
                 y: paddle.y - BALL_RADIUS - 5,
                 radius: BALL_RADIUS,
-                dx: (Math.random() < 0.5 ? -1 : 1) * (canvasWidth / 150), // Initial speed
+                dx: (Math.random() < 0.5 ? -1 : 1) * (canvasWidth / 150),
                 dy: -(canvasHeight / 150)
             };
-            ballSpeedX = ball.dx; // Store initial speed components
+            ballSpeedX = ball.dx;
             ballSpeedY = ball.dy;
 
             bricks = [];
-            for (let c = 0; c < BRICK_COLUMN_COUNT; c++) {
-                bricks[c] = [];
-                for (let r = 0; r < BRICK_ROW_COUNT; r++) {
-                    bricks[c][r] = {
-                        x: BRICK_OFFSET_LEFT + c * (BRICK_WIDTH + BRICK_PADDING),
-                        y: BRICK_OFFSET_TOP + r * (BRICK_HEIGHT + BRICK_PADDING),
-                        width: BRICK_WIDTH,
-                        height: BRICK_HEIGHT,
-                        status: 1, // 1: active, 0: broken
-                        color: `hsl(${r * 360 / BRICK_ROW_COUNT}, 70%, 60%)`
-                    };
+            if (BRICK_COLUMN_COUNT > 0 && BRICK_ROW_COUNT > 0) { // Ensure valid counts before creating
+                for (let c = 0; c < BRICK_COLUMN_COUNT; c++) {
+                    bricks[c] = [];
+                    for (let r = 0; r < BRICK_ROW_COUNT; r++) {
+                        bricks[c][r] = {
+                            x: BRICK_OFFSET_LEFT + c * (BRICK_WIDTH + BRICK_PADDING),
+                            y: BRICK_OFFSET_TOP + r * (BRICK_HEIGHT + BRICK_PADDING),
+                            width: BRICK_WIDTH,
+                            height: BRICK_HEIGHT,
+                            status: 1,
+                            color: `hsl(${r * 360 / BRICK_ROW_COUNT}, 70%, 60%)`
+                        };
+                    }
                 }
             }
             updateScoreAndLivesDisplay();
-            gameMode = 'client_playing';
+            gameMode = 'client_playing'; // This mode is for active gameplay (P2P client or single player)
             gameStatusDisplay.textContent = "ゲーム開始！";
+            initialControls.classList.add('hidden'); // Hide "Create Room" button during gameplay
         }
         
         function resetBallAndPaddle() {
+            if (!paddle || !ball) return; // Ensure objects exist
             paddle.x = (canvasWidth - PADDLE_WIDTH) / 2;
             ball.x = canvasWidth / 2;
             ball.y = paddle.y - BALL_RADIUS - 5;
-            ball.dx = (Math.random() < 0.5 ? -1 : 1) * Math.abs(ballSpeedX); // Use stored base speed
+            ball.dx = (Math.random() < 0.5 ? -1 : 1) * Math.abs(ballSpeedX);
             ball.dy = -Math.abs(ballSpeedY);
         }
 
         function updateBlockBreakerGame() {
-            if (gameMode !== 'client_playing') return;
+            if (gameMode !== 'client_playing' || !ball || !paddle || !bricks) return;
 
             ball.x += ball.dx;
             ball.y += ball.dy;
 
-            // Wall collision (left/right)
             if (ball.x + ball.radius > canvasWidth || ball.x - ball.radius < 0) {
                 ball.dx = -ball.dx;
                 ball.x = (ball.x - ball.radius < 0) ? ball.radius : canvasWidth - ball.radius;
             }
-            // Wall collision (top)
             if (ball.y - ball.radius < 0) {
                 ball.dy = -ball.dy;
                 ball.y = ball.radius;
             }
-            // Paddle collision
             if (ball.y + ball.radius > paddle.y &&
                 ball.y - ball.radius < paddle.y + paddle.height &&
                 ball.x + ball.radius > paddle.x &&
                 ball.x - ball.radius < paddle.x + paddle.width) {
-                
                 ball.dy = -ball.dy;
-                ball.y = paddle.y - ball.radius; // Prevent sticking
-
-                // Change ball's horizontal direction based on where it hits the paddle
+                ball.y = paddle.y - ball.radius;
                 let deltaX = ball.x - (paddle.x + paddle.width / 2);
-                ball.dx = deltaX * 0.15 * (Math.abs(ballSpeedX) / (canvasWidth/150) ); // Adjust multiplier for sensitivity
+                ball.dx = deltaX * 0.15 * (Math.abs(ballSpeedX) / (canvasWidth/150) );
             }
 
-            // Ball falls off bottom
             if (ball.y + ball.radius > canvasHeight) {
                 lives--;
                 updateScoreAndLivesDisplay();
                 if (lives <= 0) {
                     gameMode = 'game_over';
-                    gameStatusDisplay.textContent = "ゲームオーバー！";
-                    // No need to send P2P data, host is just observing
+                    gameStatusDisplay.textContent = "ゲームオーバー！ タップでリトライ";
+                    initialControls.classList.remove('hidden'); // Show create room button again
                 } else {
                     resetBallAndPaddle();
                 }
             }
 
-            // Brick collision
             let allBricksBroken = true;
-            for (let c = 0; c < BRICK_COLUMN_COUNT; c++) {
-                for (let r = 0; r < BRICK_ROW_COUNT; r++) {
-                    const b = bricks[c][r];
-                    if (b.status === 1) {
-                        allBricksBroken = false;
-                        if (ball.x + ball.radius > b.x && ball.x - ball.radius < b.x + b.width &&
-                            ball.y + ball.radius > b.y && ball.y - ball.radius < b.y + b.height) {
-                            ball.dy = -ball.dy;
-                            b.status = 0;
-                            score += 10;
-                            updateScoreAndLivesDisplay();
+            if (bricks.length > 0 && BRICK_COLUMN_COUNT > 0) {
+                for (let c = 0; c < BRICK_COLUMN_COUNT; c++) {
+                    for (let r = 0; r < BRICK_ROW_COUNT; r++) {
+                        const b = bricks[c][r];
+                        if (b.status === 1) {
+                            allBricksBroken = false;
+                            if (ball.x + ball.radius > b.x && ball.x - ball.radius < b.x + b.width &&
+                                ball.y + ball.radius > b.y && ball.y - ball.radius < b.y + b.height) {
+                                ball.dy = -ball.dy;
+                                b.status = 0;
+                                score += 10;
+                                updateScoreAndLivesDisplay();
+                            }
                         }
                     }
                 }
-            }
-            if (allBricksBroken && bricks.length > 0) { // Ensure bricks were initialized
-                gameMode = 'game_clear';
-                gameStatusDisplay.textContent = "ゲームクリア！おめでとう！";
+                 if (allBricksBroken) {
+                    gameMode = 'game_clear';
+                    gameStatusDisplay.textContent = "ゲームクリア！ タップで再挑戦";
+                    initialControls.classList.remove('hidden'); // Show create room button again
+                }
+            } else { // No bricks to break
+                allBricksBroken = true; // Consider it cleared if no bricks
             }
         }
 
         function drawBlockBreakerGame() {
-            // Draw paddle
+            if (!paddle || !ball || !bricks) return;
             ctx.fillStyle = '#007bff';
             ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
-
-            // Draw ball
             ctx.beginPath();
             ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
             ctx.fillStyle = '#d9534f';
             ctx.fill();
             ctx.closePath();
-
-            // Draw bricks
             for (let c = 0; c < BRICK_COLUMN_COUNT; c++) {
                 for (let r = 0; r < BRICK_ROW_COUNT; r++) {
-                    if (bricks[c][r].status === 1) {
+                    if (bricks[c] && bricks[c][r] && bricks[c][r].status === 1) {
                         ctx.fillStyle = bricks[c][r].color;
                         ctx.fillRect(bricks[c][r].x, bricks[c][r].y, bricks[c][r].width, bricks[c][r].height);
                         ctx.strokeStyle = "#333";
@@ -298,45 +304,43 @@
         }
         
         function drawGameOverScreen() {
-            drawBlockBreakerGame(); // Draw final state
+            drawBlockBreakerGame();
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-            ctx.font = `${canvasWidth/12}px Arial`;
+            ctx.font = `${Math.max(15, canvasWidth/12)}px Arial`;
             ctx.fillStyle = 'white';
             ctx.textAlign = 'center';
             ctx.fillText('ゲームオーバー', canvasWidth / 2, canvasHeight / 2 - 20);
-            ctx.font = `${canvasWidth/20}px Arial`;
-            ctx.fillText('クリック/タップでリトライ', canvasWidth / 2, canvasHeight / 2 + 30);
+            ctx.font = `${Math.max(12, canvasWidth/20)}px Arial`;
+            ctx.fillText('タップでリトライ', canvasWidth / 2, canvasHeight / 2 + 30);
         }
         function drawGameClearScreen() {
-            drawBlockBreakerGame(); // Draw final state
+            drawBlockBreakerGame();
             ctx.fillStyle = 'rgba(0, 128, 0, 0.7)';
             ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-            ctx.font = `${canvasWidth/10}px Arial`;
+            ctx.font = `${Math.max(15, canvasWidth/10)}px Arial`;
             ctx.fillStyle = 'white';
             ctx.textAlign = 'center';
             ctx.fillText('ゲームクリア!', canvasWidth / 2, canvasHeight / 2 - 20);
-            ctx.font = `${canvasWidth/20}px Arial`;
-            ctx.fillText('クリック/タップで再挑戦', canvasWidth / 2, canvasHeight / 2 + 30);
+            ctx.font = `${Math.max(12, canvasWidth/20)}px Arial`;
+            ctx.fillText('タップで再挑戦', canvasWidth / 2, canvasHeight / 2 + 30);
         }
 
         function updateScoreAndLivesDisplay() {
-            scoreAreaDisplay.textContent = `スコア: ${score}  ライフ: ${lives}`;
+            scoreAreaDisplay.textContent = `スコア: ${score !== undefined ? score : 0}  ライフ: ${lives !== undefined ? lives : INITIAL_LIVES}`;
         }
 
         function handlePaddleMove(clientX) {
-            if (localPlayerRole !== 'client' || gameMode !== 'client_playing' || !paddle) return;
+            if ((localPlayerRole !== 'client' && localPlayerRole !== 'single_player') || gameMode !== 'client_playing' || !paddle) return;
             const rect = canvas.getBoundingClientRect();
             let relativeX = clientX - rect.left;
             paddle.x = relativeX - paddle.width / 2;
-
             if (paddle.x < 0) paddle.x = 0;
             if (paddle.x + paddle.width > canvasWidth) paddle.x = canvasWidth - paddle.width;
         }
 
-        // --- Screen Drawing for Non-Game States ---
         function drawHostScreen() {
-            ctx.font = `${canvasWidth/20}px Arial`;
+            ctx.font = `${Math.max(12, canvasWidth/20)}px Arial`;
             ctx.fillStyle = '#333';
             ctx.textAlign = 'center';
             if (gameMode === 'host_waiting') {
@@ -347,40 +351,41 @@
             }
         }
         function drawMenuScreen() {
-            ctx.font = `${canvasWidth/18}px Arial`;
+            ctx.font = `${Math.max(14, canvasWidth/18)}px Arial`;
             ctx.fillStyle = '#333';
             ctx.textAlign = 'center';
-            if (gameMode === 'menu') {
-                 ctx.fillText('モードを選択してください', canvasWidth / 2, canvasHeight / 2);
-            } else if (gameMode === 'client_joining') {
+            if (gameMode === 'client_joining') {
                  ctx.fillText('ホストに接続中...', canvasWidth / 2, canvasHeight / 2);
+            } else if (gameMode === 'menu_single') {
+                ctx.fillText('タップして開始', canvasWidth / 2, canvasHeight / 2);
             }
         }
 
-
-        // --- Event Listeners ---
         canvas.addEventListener('mousemove', (e) => handlePaddleMove(e.clientX));
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
             if (e.touches.length > 0) handlePaddleMove(e.touches[0].clientX);
         }, { passive: false });
 
-        canvas.addEventListener('click', (e) => {
-            if (localPlayerRole === 'client' && (gameMode === 'game_over' || gameMode === 'game_clear')) {
-                initBlockBreakerGame(); // Restart game
+        function handleCanvasClickOrTap() {
+            // For retrying after game over/clear
+            if ((localPlayerRole === 'client' || localPlayerRole === 'single_player') && (gameMode === 'game_over' || gameMode === 'game_clear')) {
+                initBlockBreakerGame(); // This will set gameMode to 'client_playing'
+                startGameLoop();
+            } 
+            // For starting single player game from menu
+            else if (gameMode === 'menu_single' && localPlayerRole === null) { 
+                localPlayerRole = 'single_player';
+                initBlockBreakerGame();
                 startGameLoop();
             }
-        });
-         canvas.addEventListener('touchstart', (e) => {
-             e.preventDefault();
-            if (localPlayerRole === 'client' && (gameMode === 'game_over' || gameMode === 'game_clear')) {
-                initBlockBreakerGame(); // Restart game
-                startGameLoop();
-            }
+        }
+        canvas.addEventListener('click', handleCanvasClickOrTap);
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleCanvasClickOrTap();
         }, { passive: false });
 
-
-        // --- P2P Logic ---
         hostGameButton.addEventListener('click', () => {
             stopGameLoop(); cleanupPeerResources();
             localPlayerRole = 'host';
@@ -390,9 +395,9 @@
             gameStatusDisplay.textContent = 'Peer ID取得中...';
             qrCodeContainer.innerHTML = 'QRコード生成中...';
             
-            resizeCanvas(); // Set canvas size for host screen drawing
+            resizeCanvas(); // Recalculate canvas size after UI changes
             gameMode = 'host_waiting';
-            startGameLoop(); // Start loop for host screen
+            startGameLoop();
 
             peer = new Peer();
             peer.on('open', (id) => {
@@ -401,23 +406,19 @@
                 qrCodeContainer.innerHTML = '';
                 const joinUrl = `${window.location.origin}${window.location.pathname}?join=${myPeerId}`;
                 new QRCode(qrCodeContainer, { text: joinUrl, width: 150, height: 150, correctLevel: QRCode.CorrectLevel.M });
-                roomInfoDisplay.textContent = `部屋ID (短縮): ${myPeerId.substring(0,8)}...`;
+                roomInfoDisplay.textContent = `部屋ID: ${myPeerId.substring(0,8)}...`;
             });
             peer.on('connection', (newConnection) => {
-                if (conn && conn.open) { // Already connected
-                    newConnection.close(); return;
-                }
+                if (conn && conn.open) { newConnection.close(); return; }
                 conn = newConnection;
                 gameStatusDisplay.textContent = `クライアント (${conn.peer.substring(0,6)}...) が接続しました。`;
                 gameMode = 'host_client_connected';
-                p2pHostInfo.classList.add('hidden'); // Hide QR once connected
+                p2pHostInfo.classList.add('hidden');
 
-                conn.on('data', (data) => { /* Host doesn't expect game data in this setup */ });
                 conn.on('close', () => {
                     gameStatusDisplay.textContent = 'クライアントが切断しました。再度QRスキャン待ち。';
-                    conn = null;
-                    gameMode = 'host_waiting';
-                    p2pHostInfo.classList.remove('hidden'); // Show QR again
+                    conn = null; gameMode = 'host_waiting';
+                    p2pHostInfo.classList.remove('hidden');
                 });
                 conn.on('error', (err) => {
                     gameStatusDisplay.textContent = `接続エラー: ${err.type}。再度QRスキャン待ち。`;
@@ -426,23 +427,21 @@
                 });
             });
             peer.on('error', handlePeerError);
-            peer.on('disconnected', () => {
-                gameStatusDisplay.textContent="PeerJSサーバーから切断されました。";
-            });
+            peer.on('disconnected', () => gameStatusDisplay.textContent="PeerJSサーバーから切断されました。");
         });
 
         cancelHostButton.addEventListener('click', cleanupAndShowInitialScreen);
 
         function cleanupAndShowInitialScreen(){
             stopGameLoop(); cleanupPeerResources();
-            gameMode='menu'; localPlayerRole=null;
+            gameMode='menu_single'; localPlayerRole=null;
             initialControls.classList.remove('hidden');
             p2pHostInfo.classList.add('hidden');
             p2pClientInfo.classList.add('hidden');
-            gameStatusDisplay.textContent='モードを選択してください';
-            scoreAreaDisplay.textContent = 'スコア: 0  ライフ: 3'; // Reset display
-            resizeCanvas(); // Ensure canvas is ready for menu screen
-            startGameLoop(); // Start loop for menu screen drawing
+            gameStatusDisplay.textContent='タップして開始 / または部屋を作成';
+            updateScoreAndLivesDisplay(); // Reset score/lives display to defaults
+            resizeCanvas();
+            startGameLoop();
         }
 
         function handlePeerError(err){
@@ -450,59 +449,571 @@
             let errorMsg = `P2Pエラー: ${err.type}。`;
             if (err.type === 'peer-unavailable') errorMsg += "相手が見つかりません。";
             gameStatusDisplay.textContent = errorMsg;
-            // Go back to initial screen on error
             cleanupAndShowInitialScreen();
         }
         
         window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', resizeCanvas);
+
 
         function initializeApp(){
             const urlParams=new URLSearchParams(window.location.search);
             hostPeerIdToConnect=urlParams.get('join');
             
-            resizeCanvas(); // Initial canvas setup
-
-            if(hostPeerIdToConnect){ // Client mode
+            if(hostPeerIdToConnect){ // P2P Client Mode
                 stopGameLoop(); cleanupPeerResources();
                 localPlayerRole='client'; gameMode='client_joining';
                 initialControls.classList.add('hidden');
                 p2pHostInfo.classList.add('hidden');
                 p2pClientInfo.classList.remove('hidden');
                 joinStatusDisplay.textContent=`ホスト ${hostPeerIdToConnect.substring(0,6)}... に接続中...`;
-                startGameLoop(); // For drawing "connecting..." screen
-
+                
                 peer=new Peer();
                 peer.on('open',(id)=>{
                     myPeerId=id;
                     conn=peer.connect(hostPeerIdToConnect,{reliable:true});
                     conn.on('open',()=>{
-                        joinStatusDisplay.textContent = `ホストに接続成功！ゲームを開始します。`;
-                        p2pClientInfo.classList.add('hidden'); // Hide connecting info
-                        initBlockBreakerGame(); // This sets gameMode to 'client_playing'
-                        // startGameLoop() is already running or will be restarted if init calls it
+                        joinStatusDisplay.textContent = `ホストに接続成功！`;
+                        p2pClientInfo.classList.add('hidden');
+                        // localPlayerRole is already 'client'
+                        initBlockBreakerGame(); // Starts game
                     });
-                    conn.on('data', (data)=>{ /* Client doesn't expect game data in this setup */});
                     conn.on('close',()=>{
-                        gameStatusDisplay.textContent='ホストとの接続が切れました。ゲームは終了します。';
-                        gameMode = 'game_over'; // Or a specific "disconnected" state
-                        // Let player continue offline or show message and go to menu
-                        // For simplicity, treat as game over, can retry from click.
+                        gameStatusDisplay.textContent='ホストとの接続が切れました。タップして再開できます。';
+                        // Game might be over, or player can continue single player
+                        gameMode = 'game_over'; // Or 'menu_single' after a delay
+                        localPlayerRole = 'single_player'; // Can continue as single player
+                        updateScoreAndLivesDisplay(); // Show current state
+                        initialControls.classList.remove('hidden');
                     });
                     conn.on('error',(err)=>{
                         joinStatusDisplay.textContent=`接続エラー: ${err.type}`;
-                        // cleanupAndShowInitialScreen(); // Or allow offline play
+                        cleanupAndShowInitialScreen();
                     });
                 });
                 peer.on('error',handlePeerError);
-                peer.on('disconnected',()=>{
+                peer.on('disconnected',()=> {
                     gameStatusDisplay.textContent="PeerJSサーバーから切断。";
+                    cleanupAndShowInitialScreen();
                 });
-            }else{ // Host or Menu mode
-                gameMode='menu'; localPlayerRole=null;
+            }else{ // Single Player start or Host mode selection
+                gameMode='menu_single'; localPlayerRole=null;
                 initialControls.classList.remove('hidden');
-                scoreAreaDisplay.textContent = 'スコア: 0  ライフ: 3';
-                startGameLoop(); // For drawing menu screen
+                gameStatusDisplay.textContent='タップして開始 / または部屋を作成';
+                updateScoreAndLivesDisplay(); // Initialize display
             }
+            resizeCanvas(); // Initial size and draw
+            startGameLoop(); // Start loop for menu or connecting screen
+        }
+        initializeApp();
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>P2P ブロック崩し</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; background-color: #f0f0f0; touch-action: none; -webkit-tap-highlight-color: transparent; overflow-y: hidden; }
+        h1 { margin-top: 10px; margin-bottom: 5px; font-size: 1.5em; }
+        #gameContainer { position: relative; width: 90vw; max-width: 400px; margin-top: 5px; }
+        canvas { border: 2px solid black; background-color: #e0e0e0; display: block; width: 100%; aspect-ratio: 2 / 3; cursor: pointer; }
+        .info-area, .controls, .p2p-info { margin-top: 10px; text-align: center; width: 90%; max-width: 400px; }
+        button { padding: 10px 15px; margin: 5px; font-size: 16px; cursor: pointer; border-radius: 5px; border: 1px solid #ccc; }
+        button.primary { background-color: #007bff; color: white; }
+        button.secondary { background-color: #6c757d; color: white; }
+        #qrCodeContainer { margin: 10px auto; width: 150px; height: 150px; border: 1px solid #ddd; background-color: white; padding: 5px; display: flex; justify-content: center; align-items: center; }
+        #qrCodeContainer canvas, #qrCodeContainer img { max-width: 100%; max-height: 100%; }
+        #roomInfo { margin-top: 5px; font-size: 14px; word-break: break-all; }
+        .hidden { display: none !important; }
+        #scoreArea { font-size: 1.2em; margin-bottom: 5px;}
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <h1>P2P ブロック崩し</h1>
+
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div class="info-area">
+        <p id="scoreArea">スコア: 0  ライフ: 3</p>
+        <p id="gameStatus">ようこそ！</p>
+    </div>
+
+    <div id="initialControls" class="controls">
+        <button id="hostGameButton" class="primary">部屋を作成 (QR表示)</button>
+    </div>
+
+    <div id="p2pHostInfo" class="p2p-info hidden">
+        <p>このQRコードをスマホにスキャンさせてください:</p>
+        <div id="qrCodeContainer"></div>
+        <div id="roomInfo"></div>
+        <button id="cancelHostButton" class="secondary" style="margin-top:10px;">ホスティング中止</button>
+    </div>
+    
+    <div id="p2pClientInfo" class="p2p-info hidden">
+        <p id="joinStatus"></p>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreAreaDisplay = document.getElementById('scoreArea');
+        const gameStatusDisplay = document.getElementById('gameStatus');
+        const initialControls = document.getElementById('initialControls');
+        const hostGameButton = document.getElementById('hostGameButton');
+        const p2pHostInfo = document.getElementById('p2pHostInfo');
+        const qrCodeContainer = document.getElementById('qrCodeContainer');
+        const roomInfoDisplay = document.getElementById('roomInfo');
+        const cancelHostButton = document.getElementById('cancelHostButton');
+        const p2pClientInfo = document.getElementById('p2pClientInfo');
+        const joinStatusDisplay = document.getElementById('joinStatus');
+
+        // --- Game Constants and Variables ---
+        let canvasWidth, canvasHeight;
+        let animationFrameId;
+        let gameMode = 'menu_single'; // Default to single player start screen
+        let localPlayerRole = null; // 'host', 'client' (P2P), 'single_player'
+
+        // PeerJS variables
+        let peer, conn, myPeerId, hostPeerIdToConnect;
+
+        // --- Block Breaker Game Variables ---
+        let ball, paddle, bricks, score, lives;
+        const PADDLE_HEIGHT = 15;
+        let PADDLE_WIDTH = 80;
+        const BALL_RADIUS = 8;
+        const BRICK_ROW_COUNT = 5;
+        const BRICK_COLUMN_COUNT = 7;
+        const BRICK_PADDING = 5;
+        const BRICK_OFFSET_TOP = 30;
+        const BRICK_OFFSET_LEFT = 30;
+        let BRICK_WIDTH, BRICK_HEIGHT;
+        const INITIAL_LIVES = 3;
+        let ballSpeedX, ballSpeedY;
+
+
+        // --- Utility Functions ---
+        function cleanupPeerResources() {
+            if (conn) { conn.close(); conn = null; }
+            if (peer) { peer.destroy(); peer = null; }
+            myPeerId = null; hostPeerIdToConnect = null;
+        }
+
+        function stopGameLoop() {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+
+        function startGameLoop() {
+            stopGameLoop();
+            function loop() {
+                mainGameLogicAndDraw();
+                animationFrameId = requestAnimationFrame(loop);
+            }
+            animationFrameId = requestAnimationFrame(loop);
+        }
+        
+        function mainGameLogicAndDraw() {
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+            if ((localPlayerRole === 'client' || localPlayerRole === 'single_player') && 
+                (gameMode === 'client_playing' || gameMode === 'game_over' || gameMode === 'game_clear')) {
+                updateBlockBreakerGame();
+                drawBlockBreakerGame();
+                if (gameMode === 'game_over') {
+                    drawGameOverScreen();
+                } else if (gameMode === 'game_clear') {
+                    drawGameClearScreen();
+                }
+            } else if (localPlayerRole === 'host') {
+                drawHostScreen();
+            } else if (gameMode === 'menu_single' || gameMode === 'client_joining') {
+                drawMenuScreen();
+            }
+        }
+
+        function resizeCanvas() {
+            const container = document.getElementById('gameContainer');
+            const aspectRatio = 2 / 3;
+            let newWidth = container.clientWidth;
+            let newHeight = newWidth / aspectRatio;
+            // Adjust available height calculation based on visible controls
+            let controlsHeight = 0;
+            if (!initialControls.classList.contains('hidden')) {
+                controlsHeight = initialControls.offsetHeight;
+            } else if (!p2pHostInfo.classList.contains('hidden')) {
+                controlsHeight = p2pHostInfo.offsetHeight;
+            } else if (!p2pClientInfo.classList.contains('hidden')) {
+                 controlsHeight = p2pClientInfo.offsetHeight;
+            }
+
+            const availableHeight = window.innerHeight - (document.querySelector('h1').offsetHeight + document.querySelector('.info-area').offsetHeight + controlsHeight + 50);
+            if (newHeight > availableHeight * 0.9 && availableHeight > 100) { // Ensure availableHeight is reasonable
+                newHeight = availableHeight * 0.9;
+                newWidth = newHeight * aspectRatio;
+            } else if (newHeight < 150) { // Minimum sensible height
+                newHeight = 150;
+                newWidth = newHeight * aspectRatio;
+            }
+
+
+            canvas.width = newWidth; canvas.height = newHeight;
+            canvasWidth = canvas.width; canvasHeight = canvas.height;
+
+            PADDLE_WIDTH = canvasWidth / 5;
+            BRICK_WIDTH = (canvasWidth - BRICK_OFFSET_LEFT * 2 - BRICK_PADDING * (BRICK_COLUMN_COUNT -1) ) / BRICK_COLUMN_COUNT;
+            BRICK_HEIGHT = canvasHeight / 25;
+
+
+            if ((localPlayerRole === 'client' || localPlayerRole === 'single_player') && (paddle)) {
+                paddle.y = canvasHeight - PADDLE_HEIGHT - 10;
+            }
+            // Redraw based on current state
+            mainGameLogicAndDraw();
+        }
+
+        // --- Block Breaker Specific Functions ---
+        function initBlockBreakerGame() {
+            score = 0;
+            lives = INITIAL_LIVES;
+            paddle = {
+                x: (canvasWidth - PADDLE_WIDTH) / 2,
+                y: canvasHeight - PADDLE_HEIGHT - 10,
+                width: PADDLE_WIDTH,
+                height: PADDLE_HEIGHT
+            };
+            ball = {
+                x: canvasWidth / 2,
+                y: paddle.y - BALL_RADIUS - 5,
+                radius: BALL_RADIUS,
+                dx: (Math.random() < 0.5 ? -1 : 1) * (canvasWidth / 150),
+                dy: -(canvasHeight / 150)
+            };
+            ballSpeedX = ball.dx;
+            ballSpeedY = ball.dy;
+
+            bricks = [];
+            if (BRICK_COLUMN_COUNT > 0 && BRICK_ROW_COUNT > 0) { // Ensure valid counts before creating
+                for (let c = 0; c < BRICK_COLUMN_COUNT; c++) {
+                    bricks[c] = [];
+                    for (let r = 0; r < BRICK_ROW_COUNT; r++) {
+                        bricks[c][r] = {
+                            x: BRICK_OFFSET_LEFT + c * (BRICK_WIDTH + BRICK_PADDING),
+                            y: BRICK_OFFSET_TOP + r * (BRICK_HEIGHT + BRICK_PADDING),
+                            width: BRICK_WIDTH,
+                            height: BRICK_HEIGHT,
+                            status: 1,
+                            color: `hsl(${r * 360 / BRICK_ROW_COUNT}, 70%, 60%)`
+                        };
+                    }
+                }
+            }
+            updateScoreAndLivesDisplay();
+            gameMode = 'client_playing'; // This mode is for active gameplay (P2P client or single player)
+            gameStatusDisplay.textContent = "ゲーム開始！";
+            initialControls.classList.add('hidden'); // Hide "Create Room" button during gameplay
+        }
+        
+        function resetBallAndPaddle() {
+            if (!paddle || !ball) return; // Ensure objects exist
+            paddle.x = (canvasWidth - PADDLE_WIDTH) / 2;
+            ball.x = canvasWidth / 2;
+            ball.y = paddle.y - BALL_RADIUS - 5;
+            ball.dx = (Math.random() < 0.5 ? -1 : 1) * Math.abs(ballSpeedX);
+            ball.dy = -Math.abs(ballSpeedY);
+        }
+
+        function updateBlockBreakerGame() {
+            if (gameMode !== 'client_playing' || !ball || !paddle || !bricks) return;
+
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            if (ball.x + ball.radius > canvasWidth || ball.x - ball.radius < 0) {
+                ball.dx = -ball.dx;
+                ball.x = (ball.x - ball.radius < 0) ? ball.radius : canvasWidth - ball.radius;
+            }
+            if (ball.y - ball.radius < 0) {
+                ball.dy = -ball.dy;
+                ball.y = ball.radius;
+            }
+            if (ball.y + ball.radius > paddle.y &&
+                ball.y - ball.radius < paddle.y + paddle.height &&
+                ball.x + ball.radius > paddle.x &&
+                ball.x - ball.radius < paddle.x + paddle.width) {
+                ball.dy = -ball.dy;
+                ball.y = paddle.y - ball.radius;
+                let deltaX = ball.x - (paddle.x + paddle.width / 2);
+                ball.dx = deltaX * 0.15 * (Math.abs(ballSpeedX) / (canvasWidth/150) );
+            }
+
+            if (ball.y + ball.radius > canvasHeight) {
+                lives--;
+                updateScoreAndLivesDisplay();
+                if (lives <= 0) {
+                    gameMode = 'game_over';
+                    gameStatusDisplay.textContent = "ゲームオーバー！ タップでリトライ";
+                    initialControls.classList.remove('hidden'); // Show create room button again
+                } else {
+                    resetBallAndPaddle();
+                }
+            }
+
+            let allBricksBroken = true;
+            if (bricks.length > 0 && BRICK_COLUMN_COUNT > 0) {
+                for (let c = 0; c < BRICK_COLUMN_COUNT; c++) {
+                    for (let r = 0; r < BRICK_ROW_COUNT; r++) {
+                        const b = bricks[c][r];
+                        if (b.status === 1) {
+                            allBricksBroken = false;
+                            if (ball.x + ball.radius > b.x && ball.x - ball.radius < b.x + b.width &&
+                                ball.y + ball.radius > b.y && ball.y - ball.radius < b.y + b.height) {
+                                ball.dy = -ball.dy;
+                                b.status = 0;
+                                score += 10;
+                                updateScoreAndLivesDisplay();
+                            }
+                        }
+                    }
+                }
+                 if (allBricksBroken) {
+                    gameMode = 'game_clear';
+                    gameStatusDisplay.textContent = "ゲームクリア！ タップで再挑戦";
+                    initialControls.classList.remove('hidden'); // Show create room button again
+                }
+            } else { // No bricks to break
+                allBricksBroken = true; // Consider it cleared if no bricks
+            }
+        }
+
+        function drawBlockBreakerGame() {
+            if (!paddle || !ball || !bricks) return;
+            ctx.fillStyle = '#007bff';
+            ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#d9534f';
+            ctx.fill();
+            ctx.closePath();
+            for (let c = 0; c < BRICK_COLUMN_COUNT; c++) {
+                for (let r = 0; r < BRICK_ROW_COUNT; r++) {
+                    if (bricks[c] && bricks[c][r] && bricks[c][r].status === 1) {
+                        ctx.fillStyle = bricks[c][r].color;
+                        ctx.fillRect(bricks[c][r].x, bricks[c][r].y, bricks[c][r].width, bricks[c][r].height);
+                        ctx.strokeStyle = "#333";
+                        ctx.strokeRect(bricks[c][r].x, bricks[c][r].y, bricks[c][r].width, bricks[c][r].height);
+                    }
+                }
+            }
+        }
+        
+        function drawGameOverScreen() {
+            drawBlockBreakerGame();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            ctx.font = `${Math.max(15, canvasWidth/12)}px Arial`;
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.fillText('ゲームオーバー', canvasWidth / 2, canvasHeight / 2 - 20);
+            ctx.font = `${Math.max(12, canvasWidth/20)}px Arial`;
+            ctx.fillText('タップでリトライ', canvasWidth / 2, canvasHeight / 2 + 30);
+        }
+        function drawGameClearScreen() {
+            drawBlockBreakerGame();
+            ctx.fillStyle = 'rgba(0, 128, 0, 0.7)';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            ctx.font = `${Math.max(15, canvasWidth/10)}px Arial`;
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.fillText('ゲームクリア!', canvasWidth / 2, canvasHeight / 2 - 20);
+            ctx.font = `${Math.max(12, canvasWidth/20)}px Arial`;
+            ctx.fillText('タップで再挑戦', canvasWidth / 2, canvasHeight / 2 + 30);
+        }
+
+        function updateScoreAndLivesDisplay() {
+            scoreAreaDisplay.textContent = `スコア: ${score !== undefined ? score : 0}  ライフ: ${lives !== undefined ? lives : INITIAL_LIVES}`;
+        }
+
+        function handlePaddleMove(clientX) {
+            if ((localPlayerRole !== 'client' && localPlayerRole !== 'single_player') || gameMode !== 'client_playing' || !paddle) return;
+            const rect = canvas.getBoundingClientRect();
+            let relativeX = clientX - rect.left;
+            paddle.x = relativeX - paddle.width / 2;
+            if (paddle.x < 0) paddle.x = 0;
+            if (paddle.x + paddle.width > canvasWidth) paddle.x = canvasWidth - paddle.width;
+        }
+
+        function drawHostScreen() {
+            ctx.font = `${Math.max(12, canvasWidth/20)}px Arial`;
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'center';
+            if (gameMode === 'host_waiting') {
+                ctx.fillText('QRコードをスキャン待ち...', canvasWidth / 2, canvasHeight / 2);
+            } else if (gameMode === 'host_client_connected') {
+                ctx.fillText('クライアントが接続し、', canvasWidth / 2, canvasHeight / 2 - 20);
+                ctx.fillText('ブロック崩しをプレイ中です。', canvasWidth / 2, canvasHeight / 2 + 20);
+            }
+        }
+        function drawMenuScreen() {
+            ctx.font = `${Math.max(14, canvasWidth/18)}px Arial`;
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'center';
+            if (gameMode === 'client_joining') {
+                 ctx.fillText('ホストに接続中...', canvasWidth / 2, canvasHeight / 2);
+            } else if (gameMode === 'menu_single') {
+                ctx.fillText('タップして開始', canvasWidth / 2, canvasHeight / 2);
+            }
+        }
+
+        canvas.addEventListener('mousemove', (e) => handlePaddleMove(e.clientX));
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (e.touches.length > 0) handlePaddleMove(e.touches[0].clientX);
+        }, { passive: false });
+
+        function handleCanvasClickOrTap() {
+            // For retrying after game over/clear
+            if ((localPlayerRole === 'client' || localPlayerRole === 'single_player') && (gameMode === 'game_over' || gameMode === 'game_clear')) {
+                initBlockBreakerGame(); // This will set gameMode to 'client_playing'
+                startGameLoop();
+            } 
+            // For starting single player game from menu
+            else if (gameMode === 'menu_single' && localPlayerRole === null) { 
+                localPlayerRole = 'single_player';
+                initBlockBreakerGame();
+                startGameLoop();
+            }
+        }
+        canvas.addEventListener('click', handleCanvasClickOrTap);
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleCanvasClickOrTap();
+        }, { passive: false });
+
+        hostGameButton.addEventListener('click', () => {
+            stopGameLoop(); cleanupPeerResources();
+            localPlayerRole = 'host';
+            initialControls.classList.add('hidden');
+            p2pHostInfo.classList.remove('hidden');
+            p2pClientInfo.classList.add('hidden');
+            gameStatusDisplay.textContent = 'Peer ID取得中...';
+            qrCodeContainer.innerHTML = 'QRコード生成中...';
+            
+            resizeCanvas(); // Recalculate canvas size after UI changes
+            gameMode = 'host_waiting';
+            startGameLoop();
+
+            peer = new Peer();
+            peer.on('open', (id) => {
+                myPeerId = id;
+                gameStatusDisplay.textContent = 'スマホからの接続を待っています...';
+                qrCodeContainer.innerHTML = '';
+                const joinUrl = `${window.location.origin}${window.location.pathname}?join=${myPeerId}`;
+                new QRCode(qrCodeContainer, { text: joinUrl, width: 150, height: 150, correctLevel: QRCode.CorrectLevel.M });
+                roomInfoDisplay.textContent = `部屋ID: ${myPeerId.substring(0,8)}...`;
+            });
+            peer.on('connection', (newConnection) => {
+                if (conn && conn.open) { newConnection.close(); return; }
+                conn = newConnection;
+                gameStatusDisplay.textContent = `クライアント (${conn.peer.substring(0,6)}...) が接続しました。`;
+                gameMode = 'host_client_connected';
+                p2pHostInfo.classList.add('hidden');
+
+                conn.on('close', () => {
+                    gameStatusDisplay.textContent = 'クライアントが切断しました。再度QRスキャン待ち。';
+                    conn = null; gameMode = 'host_waiting';
+                    p2pHostInfo.classList.remove('hidden');
+                });
+                conn.on('error', (err) => {
+                    gameStatusDisplay.textContent = `接続エラー: ${err.type}。再度QRスキャン待ち。`;
+                    if(conn) conn.close(); conn = null; gameMode = 'host_waiting';
+                    p2pHostInfo.classList.remove('hidden');
+                });
+            });
+            peer.on('error', handlePeerError);
+            peer.on('disconnected', () => gameStatusDisplay.textContent="PeerJSサーバーから切断されました。");
+        });
+
+        cancelHostButton.addEventListener('click', cleanupAndShowInitialScreen);
+
+        function cleanupAndShowInitialScreen(){
+            stopGameLoop(); cleanupPeerResources();
+            gameMode='menu_single'; localPlayerRole=null;
+            initialControls.classList.remove('hidden');
+            p2pHostInfo.classList.add('hidden');
+            p2pClientInfo.classList.add('hidden');
+            gameStatusDisplay.textContent='タップして開始 / または部屋を作成';
+            updateScoreAndLivesDisplay(); // Reset score/lives display to defaults
+            resizeCanvas();
+            startGameLoop();
+        }
+
+        function handlePeerError(err){
+            console.error('PeerJS Error:',err);
+            let errorMsg = `P2Pエラー: ${err.type}。`;
+            if (err.type === 'peer-unavailable') errorMsg += "相手が見つかりません。";
+            gameStatusDisplay.textContent = errorMsg;
+            cleanupAndShowInitialScreen();
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', resizeCanvas);
+
+
+        function initializeApp(){
+            const urlParams=new URLSearchParams(window.location.search);
+            hostPeerIdToConnect=urlParams.get('join');
+            
+            if(hostPeerIdToConnect){ // P2P Client Mode
+                stopGameLoop(); cleanupPeerResources();
+                localPlayerRole='client'; gameMode='client_joining';
+                initialControls.classList.add('hidden');
+                p2pHostInfo.classList.add('hidden');
+                p2pClientInfo.classList.remove('hidden');
+                joinStatusDisplay.textContent=`ホスト ${hostPeerIdToConnect.substring(0,6)}... に接続中...`;
+                
+                peer=new Peer();
+                peer.on('open',(id)=>{
+                    myPeerId=id;
+                    conn=peer.connect(hostPeerIdToConnect,{reliable:true});
+                    conn.on('open',()=>{
+                        joinStatusDisplay.textContent = `ホストに接続成功！`;
+                        p2pClientInfo.classList.add('hidden');
+                        // localPlayerRole is already 'client'
+                        initBlockBreakerGame(); // Starts game
+                    });
+                    conn.on('close',()=>{
+                        gameStatusDisplay.textContent='ホストとの接続が切れました。タップして再開できます。';
+                        // Game might be over, or player can continue single player
+                        gameMode = 'game_over'; // Or 'menu_single' after a delay
+                        localPlayerRole = 'single_player'; // Can continue as single player
+                        updateScoreAndLivesDisplay(); // Show current state
+                        initialControls.classList.remove('hidden');
+                    });
+                    conn.on('error',(err)=>{
+                        joinStatusDisplay.textContent=`接続エラー: ${err.type}`;
+                        cleanupAndShowInitialScreen();
+                    });
+                });
+                peer.on('error',handlePeerError);
+                peer.on('disconnected',()=> {
+                    gameStatusDisplay.textContent="PeerJSサーバーから切断。";
+                    cleanupAndShowInitialScreen();
+                });
+            }else{ // Single Player start or Host mode selection
+                gameMode='menu_single'; localPlayerRole=null;
+                initialControls.classList.remove('hidden');
+                gameStatusDisplay.textContent='タップして開始 / または部屋を作成';
+                updateScoreAndLivesDisplay(); // Initialize display
+            }
+            resizeCanvas(); // Initial size and draw
+            startGameLoop(); // Start loop for menu or connecting screen
         }
         initializeApp();
     </script>
