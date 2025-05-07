@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>P2P エアホッケー (最終修正)</title>
+    <title>P2P エアホッケー (最終修正v2)</title>
     <style>
+        /* CSSは変更なし */
         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; background-color: #f0f0f0; touch-action: none; -webkit-tap-highlight-color: transparent; }
         #gameContainer { position: relative; width: 90vw; max-width: 400px; margin-top: 10px; }
         canvas { border: 2px solid black; background-color: #fff; display: block; width: 100%; aspect-ratio: 2 / 3; }
@@ -49,7 +50,7 @@
     </div>
 
     <script>
-        // --- DOM Elements ---
+        // --- DOM Elements (変更なし) ---
         const canvas = document.getElementById('airHockeyCanvas');
         const ctx = canvas.getContext('2d');
         const scoreDisplay = document.getElementById('score');
@@ -63,150 +64,91 @@
         const p2pClientInfo = document.getElementById('p2pClientInfo');
         const joinStatusDisplay = document.getElementById('joinStatus');
 
-        // --- Game Constants and Variables ---
+        // --- Game Constants and Variables (変更なし) ---
         let PADDLE_RADIUS = 20, PUCK_RADIUS = 15, GOAL_WIDTH = 100;
         const WINNING_SCORE = 10;
         const PADDLE_SPEED_FACTOR = 0.15;
         let canvasWidth, canvasHeight;
-
         let player1 = { x: 0, y: 0, score: 0, radius: PADDLE_RADIUS, targetX: 0, targetY: 0, name: "あなた" };
         let player2 = { x: 0, y: 0, score: 0, radius: PADDLE_RADIUS, isAI: true, targetX: 0, targetY: 0, name: "AI" };
         let puck = { x: 0, y: 0, vx: 0, vy: 0, radius: PUCK_RADIUS };
-
         let gameMode = 'menu'; 
         let localPlayerRole = null; 
         let animationFrameId;
         let isTouching = false;
-
         let peer, conn, myPeerId, hostPeerIdToConnect;
 
         // --- Utility Functions ---
-        function cleanupPeerResources() {
-            if (conn) { conn.close(); conn = null; }
-            if (peer) { peer.destroy(); peer = null; }
-            myPeerId = null;
-            hostPeerIdToConnect = null;
-        }
-
-        function stopGameLoop() {
-            if (animationFrameId) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
-            }
-        }
-
-        function startGameLoop() {
-            stopGameLoop(); // Ensure no multiple loops
-            function loop() {
-                gameLogicAndDraw();
-                animationFrameId = requestAnimationFrame(loop);
-            }
-            animationFrameId = requestAnimationFrame(loop);
-        }
+        function cleanupPeerResources() { /* (変更なし) */ if(conn){conn.close();conn=null;}if(peer){peer.destroy();peer=null;}myPeerId=null;hostPeerIdToConnect=null; }
+        function stopGameLoop() { if(animationFrameId){cancelAnimationFrame(animationFrameId);animationFrameId=null;} }
+        function startGameLoop() { stopGameLoop(); function loop(){gameLogicAndDraw();animationFrameId=requestAnimationFrame(loop);}animationFrameId=requestAnimationFrame(loop); console.log("Game Loop Started - Mode:", gameMode);}
         
         function gameLogicAndDraw() {
-            if (gameMode === 'menu') {
-                drawField(); // メニュー中は描画だけ
-                return;
+            // ループの最初にモードと必須オブジェクトをチェック
+             if (!player1 || !player2 || !puck || !canvasWidth || !canvasHeight) {
+                console.warn("ループ実行に必要なオブジェクトが不足しています。Mode:", gameMode);
+                 // 致命的ではない場合、フィールド描画だけ試みる
+                if (ctx && canvasWidth && canvasHeight) drawField();
+                return; // 処理中断
             }
-            if(!player1 || !player2 || !puck || !canvasWidth || !canvasHeight) { 
-                console.warn("Game objects not ready for game loop execution");
-                return; // 必要なオブジェクトがなければ処理中断
-            }
+            
+            if (gameMode === 'menu') { drawField(); return; } // メニューなら描画のみ
 
+            // パドル位置更新 (全モード共通)
             updatePaddlePosition(player1);
-            if(player2.isAI && (gameMode === 'host_waiting_ai' || gameMode === 'ai_solo')){ // ai_soloは現状未使用
-                aiMove();
-            }
-            updatePaddlePosition(player2);
+            updatePaddlePosition(player2); // AI/相手パドルも描画のために位置更新
 
-            if(gameMode==='ai_solo'||gameMode==='host_waiting_ai'||(gameMode==='p2p_playing'&&localPlayerRole==='host')){
-                updateGamePhysics();
-            }
+            // AIの思考 (AI対戦モードのみ)
+            if(player2.isAI && (gameMode === 'host_waiting_ai' || gameMode === 'ai_solo')){ aiMove(); } 
+
+            // 物理演算 (ホストまたはAIソロプレイ時のみ)
+            if(gameMode==='ai_solo'||gameMode==='host_waiting_ai'||(gameMode==='p2p_playing'&&localPlayerRole==='host')){ updateGamePhysics(); }
             
+            // 描画 (全モード共通、ただしメニューは除く)
             drawField();
-            drawCircle(player1.x,player1.y,player1.radius,'#0077B6');
-            drawCircle(player2.x,player2.y,player2.radius,(player2.isAI && gameMode!=='p2p_playing')?'#E63946':(conn&&conn.open?'#2A9D8F':'#E63946'));
-            drawCircle(puck.x,puck.y,puck.radius,'#003049');
+            drawCircle(player1.x,player1.y,player1.radius,'#0077B6'); // Player 1 (常に下側表示だが、実体は状況による)
+            drawCircle(player2.x,player2.y,player2.radius,(player2.isAI && gameMode!=='p2p_playing')?'#E63946':(conn&&conn.open?'#2A9D8F':'#E63946')); // Player 2 (AI or P2P相手)
+            drawCircle(puck.x,puck.y,puck.radius,'#003049'); // Puck
         }
 
-
-        function resizeCanvas() {
-            const container = document.getElementById('gameContainer');
-            if (!container) return;
-            const aspectRatio = 2 / 3;
-            let newWidth = container.clientWidth;
-            let newHeight = newWidth / aspectRatio;
-            if (newHeight > window.innerHeight * 0.65) {
-                newHeight = window.innerHeight * 0.65;
-                newWidth = newHeight * aspectRatio;
-            }
-            canvas.width = newWidth; canvas.height = newHeight;
-            canvasWidth = canvas.width; canvasHeight = canvas.height;
-            
-            PADDLE_RADIUS = canvasWidth / 20; PUCK_RADIUS = canvasWidth / 27; GOAL_WIDTH = canvasWidth / 4;
-            if(player1) player1.radius = PADDLE_RADIUS;
-            if(player2) player2.radius = PADDLE_RADIUS;
-            if(puck) puck.radius = PUCK_RADIUS;
-            
-            if(gameMode !== 'menu') {
-                 initGameElements(); // ゲームオブジェクト初期化/再配置
-                 drawField(); // 盤面初期描画
-                 if (player1 && player2 && puck) gameLogicAndDraw(); // 最初の1フレーム描画
-            } else {
-                 drawField(); 
-            }
-        }
-
-        function initGameElements() {
-            if(!canvasWidth || !canvasHeight || !player1 || !player2 || !puck) return; 
-            player1.x = canvasWidth / 2; player1.y = canvasHeight * 0.85;
-            player1.targetX = player1.x; player1.targetY = player1.y;
-            player2.x = canvasWidth / 2; player2.y = canvasHeight * 0.15;
-            player2.targetX = player2.x; player2.targetY = player2.y;
-            resetPuck();
-        }
-
-        function resetPuck(servingPlayer = null) {
-            if(!canvasWidth || !canvasHeight || !puck) return;
-            puck.x = canvasWidth / 2; puck.y = canvasHeight / 2;
-            let speed = canvasWidth / 100;
-            if (servingPlayer === 1) puck.vy = speed;
-            else if (servingPlayer === 2) puck.vy = -speed;
-            else puck.vy = (Math.random() > 0.5 ? 1 : -1) * speed;
-            puck.vx = (Math.random() > 0.5 ? 1 : -1) * speed * 0.7;
-        }
+        function resizeCanvas() { /* (変更なし) */ const c=document.getElementById('gameContainer');if(!c)return;const a=2/3;let nw=c.clientWidth,nh=nw/a;if(nh>window.innerHeight*0.65){nh=window.innerHeight*0.65;nw=nh*a;}canvas.width=nw;canvas.height=nh;canvasWidth=canvas.width;canvasHeight=canvas.height;PADDLE_RADIUS=canvasWidth/20;PUCK_RADIUS=canvasWidth/27;GOAL_WIDTH=canvasWidth/4;if(player1)player1.radius=PADDLE_RADIUS;if(player2)player2.radius=PADDLE_RADIUS;if(puck)puck.radius=PUCK_RADIUS;if(gameMode!=='menu'){initGameElements();drawField();if(player1&&player2&&puck)gameLogicAndDraw();}else{drawField();} }
+        function initGameElements() { /* (変更なし) */ if(!canvasWidth||!canvasHeight||!player1||!player2||!puck)return;player1.x=canvasWidth/2;player1.y=canvasHeight*0.85;player1.targetX=player1.x;player1.targetY=player1.y;player2.x=canvasWidth/2;player2.y=canvasHeight*0.15;player2.targetX=player2.x;player2.targetY=player2.y;resetPuck();}
+        function resetPuck(sP=null){if(!canvasWidth||!canvasHeight||!puck)return;puck.x=canvasWidth/2;puck.y=canvasHeight/2;let s=canvasWidth/100;if(sP===1)puck.vy=s;else if(sP===2)puck.vy=-s;else puck.vy=(Math.random()>0.5?1:-1)*s;puck.vx=(Math.random()>0.5?1:-1)*s*0.7;}
         
-        function resetGame(isAIopponent) {
+        function resetGame(isAI) { // isAIopponent -> isAI に変更
             player1.score = 0;
             player2.score = 0;
-            player2.isAI = isAIopponent;
+            player2.isAI = isAI;
             
-            if (localPlayerRole === 'host' || gameMode === 'host_waiting_ai') { // ai_soloは現状なし
+            // 役割に基づいて名前を設定
+            if (localPlayerRole === 'host' || gameMode === 'host_waiting_ai') {
                 player1.name = "あなた";
-                player2.name = isAIopponent ? "AI" : "友達";
+                player2.name = isAI ? "AI" : "友達";
             } else if (localPlayerRole === 'client') {
-                player1.name = "友達"; 
-                player2.name = "あなた"; 
-            } else { 
+                player1.name = "友達"; // P1はホスト
+                player2.name = "あなた"; // P2は自分
+                player2.isAI = false; // クライアントはAIにはならない
+            } else { // menu or ai_solo (現状未使用)
                 player1.name = "あなた";
                 player2.name = "AI";
+                player2.isAI = true;
             }
             updateScoreDisplay();
             initGameElements(); 
+            console.log(`Game Reset - Mode: ${gameMode}, Role: ${localPlayerRole}, P2 is AI: ${player2.isAI}`);
             if (gameMode === 'p2p_playing' && localPlayerRole === 'host' && conn && conn.open) {
                  sendP2PData({ type: 'game_reset_p2p' });
             }
         }
 
-        function updateScoreDisplay() { /* (変更なし、前回のままでOK) */ let p1DN=player1.name,p2DN=player2.name,p1DS=player1.score,p2DS=player2.score;if(gameMode==='p2p_playing'&&localPlayerRole==='client'){p1DN=player2.name;p2DN=player1.name;p1DS=player2.score;p2DS=player1.score;}scoreDisplay.textContent=`${p1DN}: ${p1DS} - ${p2DN}: ${p2DS}`; }
+        function updateScoreDisplay() { /* (変更なし) */ let p1DN=player1.name,p2DN=player2.name,p1DS=player1.score,p2DS=player2.score;if(gameMode==='p2p_playing'&&localPlayerRole==='client'){p1DN=player2.name;p2DN=player1.name;p1DS=player2.score;p2DS=player1.score;}scoreDisplay.textContent=`${p1DN}: ${p1DS} - ${p2DN}: ${p2DS}`; }
         function drawCircle(x,y,r,c){if(!ctx)return;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=c;ctx.fill();ctx.closePath();}
         function drawField(){if(!ctx||!canvasWidth||!canvasHeight)return;ctx.clearRect(0,0,canvasWidth,canvasHeight);ctx.beginPath();ctx.moveTo(0,canvasHeight/2);ctx.lineTo(canvasWidth,canvasHeight/2);ctx.strokeStyle='#ccc';ctx.lineWidth=2;ctx.stroke();ctx.beginPath();ctx.arc(canvasWidth/2,canvasHeight/2,canvasWidth/8,0,Math.PI*2);ctx.stroke();ctx.fillStyle='lightgrey';const gh=(PUCK_RADIUS||15)*1.5;const gw=(GOAL_WIDTH||100);ctx.fillRect((canvasWidth-gw)/2,0,gw,gh);ctx.fillRect((canvasWidth-gw)/2,canvasHeight-gh,gw,gh);}
         function updatePaddlePosition(paddle){if(!paddle||!canvasWidth||!canvasHeight)return;let dx=paddle.targetX-paddle.x,dy=paddle.targetY-paddle.y;paddle.x+=dx*PADDLE_SPEED_FACTOR;paddle.y+=dy*PADDLE_SPEED_FACTOR;paddle.x=Math.max(paddle.radius,Math.min(canvasWidth-paddle.radius,paddle.x));if(paddle===player1||(localPlayerRole==='client'&&paddle===player2&&gameMode==='p2p_playing')){paddle.y=Math.max(canvasHeight/2+paddle.radius,Math.min(canvasHeight-paddle.radius,paddle.y));}else{paddle.y=Math.max(paddle.radius,Math.min(canvasHeight/2-paddle.radius,paddle.y));}}
         function aiMove(){if(!player2||!puck||!player2.isAI||gameMode==='p2p_playing'||!canvasHeight||!canvasWidth)return;let tX,tY;const rDY=canvasHeight*0.6,cSTY=canvasHeight*0.25;if(puck.y<cSTY&&puck.vy<=0.1&&Math.abs(puck.vx)<1){tX=canvasWidth/2;tY=puck.y-player2.radius*2.2;}else if(puck.vy<0&&puck.y<rDY){tX=puck.x;tY=puck.y-player2.radius*1.2;}else{tX=canvasWidth/2;tY=canvasHeight*0.15;}player2.targetX=tX;player2.targetY=Math.max(player2.radius,Math.min(canvasHeight/2-player2.radius,tY));}
-        function updateGamePhysics(){if(!puck||!player1||!player2||!canvasWidth||!canvasHeight)return;puck.x+=puck.vx;puck.y+=puck.vy;puck.vx*=0.995;puck.vy*=0.995;if(puck.x+puck.radius>canvasWidth||puck.x-puck.radius<0){puck.vx*=-1;puck.x=(puck.x-puck.radius<0)?puck.radius:canvasWidth-puck.radius;}const gh=PUCK_RADIUS*1.5,gw=GOAL_WIDTH;if((puck.y+puck.radius>canvasHeight&&(puck.x<(canvasWidth-gw)/2||puck.x>(canvasWidth+gw)/2))||(puck.y-puck.radius<0&&(puck.x<(canvasWidth-gw)/2||puck.x>(canvasWidth+gw)/2))){puck.vy*=-1;puck.y=(puck.y-puck.radius<0)?puck.radius:(puck.y+puck.radius>canvasHeight?canvasHeight-puck.radius:puck.y);}checkCollision(player1,puck);checkCollision(player2,puck);let s=false;let scoredP=null;if(puck.y-puck.radius<gh&&puck.x>(canvasWidth-gw)/2&&puck.x<(canvasWidth+gw)/2){(localPlayerRole==='client'?player2:player1).score++;s=true;scoredP=(localPlayerRole==='client'?2:1);}else if(puck.y+puck.radius>canvasHeight-gh&&puck.x>(canvasWidth-gw)/2&&puck.x<(canvasWidth+gw)/2){(localPlayerRole==='client'?player1:player2).score++;s=true;scoredP=(localPlayerRole==='client'?1:2);}if(s){updateScoreDisplay();checkWin();if(gameMode!=='game_over')resetPuck(scoredP===1?2:(scoredP===2?1:null));if(localPlayerRole==='host'&&conn&&conn.open)sendP2PData({type:'score_update',scores:{player1:player1.score,player2:player2.score},scoredPlayer:scoredP});}}
+        function updateGamePhysics(){if(!puck||!player1||!player2||!canvasWidth||!canvasHeight)return;puck.x+=puck.vx;puck.y+=puck.vy;puck.vx*=0.995;puck.vy*=0.995;if(puck.x+puck.radius>canvasWidth||puck.x-puck.radius<0){puck.vx*=-1;puck.x=(puck.x-puck.radius<0)?puck.radius:canvasWidth-puck.radius;}const gh=PUCK_RADIUS*1.5,gw=GOAL_WIDTH;if((puck.y+puck.radius>canvasHeight&&(puck.x<(canvasWidth-gw)/2||puck.x>(canvasWidth+gw)/2))||(puck.y-puck.radius<0&&(puck.x<(canvasWidth-gw)/2||puck.x>(canvasWidth+gw)/2))){puck.vy*=-1;puck.y=(puck.y-puck.radius<0)?puck.radius:(puck.y+puck.radius>canvasHeight?canvasHeight-puck.radius:puck.y);}checkCollision(player1,puck);checkCollision(player2,puck);let s=false;let scoredP=null;if(puck.y-puck.radius<gh&&puck.x>(canvasWidth-gw)/2&&puck.x<(canvasWidth+gw)/2){player1.score++;s=true;scoredP=1;}else if(puck.y+puck.radius>canvasHeight-gh&&puck.x>(canvasWidth-gw)/2&&puck.x<(canvasWidth+gw)/2){player2.score++;s=true;scoredP=2;}if(s){updateScoreDisplay();checkWin();if(gameMode!=='game_over')resetPuck(scoredP===1?2:1);if(localPlayerRole==='host'&&conn&&conn.open)sendP2PData({type:'score_update',scores:{player1:player1.score,player2:player2.score},scoredPlayer:scoredP});}}
         function checkCollision(paddle,puck){if(!paddle||!puck||!canvasWidth)return;let dx=puck.x-paddle.x,dy=puck.y-paddle.y,d=Math.sqrt(dx*dx+dy*dy);if(d<paddle.radius+puck.radius){let a=Math.atan2(dy,dx),s=canvasWidth/60;puck.vx=Math.cos(a)*s;puck.vy=Math.sin(a)*s;let o=paddle.radius+puck.radius-d+1.5;puck.x+=Math.cos(a)*o;puck.y+=Math.sin(a)*o;const ms=canvasWidth/25,cs=Math.sqrt(puck.vx*puck.vx+puck.vy*puck.vy);if(cs>ms){puck.vx=(puck.vx/cs)*ms;puck.vy=(puck.vy/cs)*ms;}}}
-        function checkWin(){if(!player1||!player2)return;let lPS=(localPlayerRole==='client'&&gameMode==='p2p_playing')?player2.score:player1.score;let oS=(localPlayerRole==='client'&&gameMode==='p2p_playing')?player1.score:player2.score;let rt="";if(lPS>=WINNING_SCORE)rt="あなたの勝ち";else if(oS>=WINNING_SCORE)rt="あなたの負け";if(rt){const ogm=gameMode;gameStatusDisplay.textContent=rt+"！";gameMode='game_over';stopGameLoop();setTimeout(()=>{if(ogm==='game_over'){cleanupAndShowInitialScreen();return;}gameMode=ogm;if(gameMode==='host_waiting_ai')gameStatusDisplay.textContent='友達の参加待ち...AIと対戦中';else if(gameMode==='p2p_playing')gameStatusDisplay.textContent='P2P対戦中';else{cleanupAndShowInitialScreen();return;}resetGame(player2.isAI);startGameLoop();},3000);}}
+        function checkWin(){if(!player1||!player2)return;let localPScore=(localPlayerRole==='client'&&gameMode==='p2p_playing')?player2.score:player1.score;let oS=(localPlayerRole==='client'&&gameMode==='p2p_playing')?player1.score:player2.score;let rt="";if(localPScore>=WINNING_SCORE)rt="あなたの勝ち";else if(oS>=WINNING_SCORE)rt="あなたの負け";if(rt){const ogm=gameMode;gameStatusDisplay.textContent=rt+"！";gameMode='game_over';stopGameLoop();setTimeout(()=>{if(ogm==='game_over'){cleanupAndShowInitialScreen();return;}gameMode=ogm;if(gameMode==='host_waiting_ai')gameStatusDisplay.textContent='友達の参加待ち...AIと対戦中';else if(gameMode==='p2p_playing')gameStatusDisplay.textContent='P2P対戦中';else{cleanupAndShowInitialScreen();return;}resetGame(player2.isAI);startGameLoop();},3000);}}
         function handleMove(cX,cY){if(gameMode==='menu'||gameMode==='game_over'||!player1)return;const r=canvas.getBoundingClientRect();let x=(cX-r.left)*(canvas.width/r.width),y=(cY-r.top)*(canvas.height/r.height);let cp=player1;if(gameMode==='p2p_playing'&&localPlayerRole==='client'&&player2)cp=player2;if(!cp)return;cp.targetX=x;cp.targetY=y;if(conn&&conn.open){let pX=cp.x,pY=cp.y;if(localPlayerRole==='client'){pX=canvasWidth-cp.x;pY=canvasHeight-cp.y;}sendP2PData({type:'paddle_move',x:pX,y:pY});}}
         
         canvas.addEventListener('touchstart',(e)=>{e.preventDefault();if(e.touches.length>0){isTouching=true;handleMove(e.touches[0].clientX,e.touches[0].clientY);}},{passive:false});
@@ -219,57 +161,69 @@
         canvas.addEventListener('mouseleave',()=>{isTouching=false;});
         
         function sendP2PData(d){if(conn&&conn.open)conn.send(JSON.stringify(d));}
-        function handleP2PData(jsonD){try{const d=JSON.parse(jsonD);if(!player1||!player2)return;if(d.type==='paddle_move'){if(localPlayerRole==='host'){player2.x=canvasWidth-d.x;player2.y=canvasHeight-d.y;}else if(localPlayerRole==='client'){player1.x=canvasWidth-d.x;player1.y=canvasHeight-d.y;}}else if(d.type==='puck_state'){if(localPlayerRole==='client'&&puck){puck.x=canvasWidth-d.puck.x;puck.y=canvasHeight-d.puck.y;puck.vx=-d.puck.vx;puck.vy=-d.puck.vy;}}else if(d.type==='score_update'){if(localPlayerRole==='client'){player1.score=d.scores.player1;player2.score=d.scores.player2;updateScoreDisplay();if(d.scoredPlayer)resetPuck(d.scoredPlayer===1?2:1);}}else if(d.type==='game_reset_p2p'){if(localPlayerRole==='client'){player1.score=0;player2.score=0;player2.isAI=false;player2.name="あなた";player1.name="友達";initGameElements();updateScoreDisplay();gameStatusDisplay.textContent="ホストがリセット";}}else if(d.type==='game_start_ack'&&localPlayerRole==='client'){stopGameLoop();gameMode='p2p_playing';player2.isAI=false;player1.name="友達";player2.name="あなた";gameStatusDisplay.textContent='P2P対戦開始！';initialControls.classList.add('hidden');p2pClientInfo.classList.add('hidden');resetGame(false);updateScoreDisplay();startGameLoop();}}catch(e){console.error("P2Pデータエラー:",e);}}
+        function handleP2PData(jsonD){try{const d=JSON.parse(jsonD);if(!player1||!player2||!canvasWidth||!canvasHeight)return;if(d.type==='paddle_move'){if(localPlayerRole==='host'){player2.x=canvasWidth-d.x;player2.y=canvasHeight-d.y;}else if(localPlayerRole==='client'){player1.x=canvasWidth-d.x;player1.y=canvasHeight-d.y;}}else if(d.type==='puck_state'){if(localPlayerRole==='client'&&puck){puck.x=canvasWidth-d.puck.x;puck.y=canvasHeight-d.puck.y;puck.vx=-d.puck.vx;puck.vy=-d.puck.vy;}}else if(d.type==='score_update'){if(localPlayerRole==='client'){player1.score=d.scores.player1;player2.score=d.scores.player2;updateScoreDisplay();if(d.scoredPlayer)resetPuck(d.scoredPlayer===1?2:1);}}else if(d.type==='game_reset_p2p'){if(localPlayerRole==='client'){player1.score=0;player2.score=0;player2.isAI=false;player2.name="あなた";player1.name="友達";initGameElements();updateScoreDisplay();gameStatusDisplay.textContent="ホストがリセット";}}else if(d.type==='game_start_ack'&&localPlayerRole==='client'){console.log("Received game_start_ack from host");stopGameLoop();gameMode='p2p_playing';player2.isAI=false;player1.name="友達";player2.name="あなた";gameStatusDisplay.textContent='P2P対戦開始！';initialControls.classList.add('hidden');p2pClientInfo.classList.add('hidden');resetGame(false);updateScoreDisplay();startGameLoop();}}catch(e){console.error("P2Pデータエラー:",e);}}
 
         hostGameButton.addEventListener('click', () => {
+            console.log("Host button clicked");
             stopGameLoop();
             cleanupPeerResources(); 
             localPlayerRole = 'host';
-            player1.name = "あなた"; player2.isAI = true; player2.name = "AI";
+            player1.name = "あなた"; player2.isAI = true; player2.name = "AI"; // AI戦の準備はしておく
             
             initialControls.classList.add('hidden');
             p2pHostInfo.classList.remove('hidden');
             p2pClientInfo.classList.add('hidden');
-            gameStatusDisplay.textContent = 'Peer ID取得中...';
+            gameStatusDisplay.textContent = 'PeerJS初期化中...';
 
-            resizeCanvas(); // 最初にキャンバスサイズを確定
-            initGameElements(); // ゲームオブジェクトを初期化
-            // この時点ではまだ gameLoop を開始しない。peer.on('open') で開始。
-            drawField(); // PeerID取得待ちの間、空の盤面を表示しておく
-            
-            peer = new Peer(); 
-            peer.on('open', (id) => {
-                myPeerId = id;
-                gameMode = 'host_waiting_ai'; // AI対戦モードに設定
-                gameStatusDisplay.textContent = '友達の参加待ち... AIと対戦中';
-                qrCodeContainer.innerHTML = '';
-                const joinUrl = `${window.location.origin}${window.location.pathname}?join=${myPeerId}`;
-                new QRCode(qrCodeContainer, { text: joinUrl, width: 150, height: 150, correctLevel: QRCode.CorrectLevel.M });
-                roomInfoDisplay.textContent = `部屋ID: ${myPeerId.substring(0,8)}...`;
-                
-                resetGame(true); // AI戦として初期化・スコア表示更新
-                startGameLoop(); // AI対戦ループ開始
-            });
-            peer.on('connection', (newConnection) => {
-                if (conn && conn.open) { newConnection.send(JSON.stringify({type:'error',message:'Host busy'}));setTimeout(()=>newConnection.close(),500);return; }
-                conn = newConnection;
-                gameStatusDisplay.textContent = `友達 (${conn.peer.substring(0,6)}...) が参加！ P2P対戦準備中...`;
-                
-                conn.on('open', () => {
-                    stopGameLoop(); // AI戦のループを確実に停止
-                    gameMode = 'p2p_playing'; player2.isAI = false; player2.name = "友達";
-                    p2pHostInfo.classList.add('hidden'); 
-                    resetGame(false); 
-                    sendP2PData({ type: 'game_start_ack' }); 
-                    updateScoreDisplay();
-                    startGameLoop(); // P2P戦のループ開始
+            resizeCanvas(); 
+            initGameElements(); // ここで一度初期化
+            drawField(); // PeerID取得待ちの表示
+
+            try {
+                peer = new Peer(); 
+                console.log("Peer object created");
+
+                peer.on('open', (id) => {
+                    myPeerId = id;
+                    console.log("Peer opened with ID:", myPeerId);
+                    gameMode = 'host_waiting_ai'; 
+                    gameStatusDisplay.textContent = '友達の参加待ち... AIと対戦中';
+                    qrCodeContainer.innerHTML = '';
+                    const joinUrl = `${window.location.origin}${window.location.pathname}?join=${myPeerId}`;
+                    new QRCode(qrCodeContainer, { text: joinUrl, width: 150, height: 150, correctLevel: QRCode.CorrectLevel.M });
+                    roomInfoDisplay.textContent = `部屋ID: ${myPeerId.substring(0,8)}...`;
+                    
+                    resetGame(true); // AI戦として初期化
+                    startGameLoop(); // ループ開始
                 });
-                conn.on('data', handleP2PData);
-                conn.on('close', () => { gameStatusDisplay.textContent='友達切断。AI待機に戻ります。';conn=null;if(gameMode==='p2p_playing' || gameMode === 'host_waiting_ai')startAIWaitingModeForHost();});
-                conn.on('error', (err) => { console.error("Connエラー(H):",err);gameStatusDisplay.textContent=`接続エラー:${err.type}。AI待機に戻ります。`;if(conn)conn.close();conn=null;if(gameMode==='p2p_playing' || gameMode === 'host_waiting_ai')startAIWaitingModeForHost();});
-            });
-            peer.on('error', handlePeerError);
-            peer.on('disconnected', () => { gameStatusDisplay.textContent="P2P鯖から切断";cleanupAndShowInitialScreen();});
+
+                peer.on('connection', (newConnection) => {
+                    console.log("Incoming connection from:", newConnection.peer);
+                    if (conn && conn.open) { newConnection.send(JSON.stringify({type:'error',message:'Host busy'}));setTimeout(()=>newConnection.close(),500);return; }
+                    conn = newConnection;
+                    gameStatusDisplay.textContent = `友達 (${conn.peer.substring(0,6)}...) が参加！ 準備中...`;
+                    
+                    conn.on('open', () => {
+                        console.log("Connection established with:", conn.peer);
+                        stopGameLoop(); 
+                        gameMode = 'p2p_playing'; player2.isAI = false; player2.name = "友達";
+                        p2pHostInfo.classList.add('hidden'); 
+                        resetGame(false); 
+                        sendP2PData({ type: 'game_start_ack' }); 
+                        updateScoreDisplay();
+                        startGameLoop(); 
+                    });
+                    conn.on('data', handleP2PData);
+                    conn.on('close', () => { console.log("Connection closed by", conn.peer); gameStatusDisplay.textContent='友達切断。AI待機に戻ります。';conn=null;if(gameMode==='p2p_playing')startAIWaitingModeForHost();});
+                    conn.on('error', (err) => { console.error("Connエラー(H):",err);gameStatusDisplay.textContent=`接続エラー:${err.type}。AI待機に戻ります。`;if(conn)conn.close();conn=null;if(gameMode==='p2p_playing')startAIWaitingModeForHost();});
+                });
+                peer.on('error', handlePeerError);
+                peer.on('disconnected', () => { gameStatusDisplay.textContent="P2P鯖から切断";cleanupAndShowInitialScreen();});
+
+            } catch (error) {
+                 console.error("PeerJSの初期化に失敗:", error);
+                 gameStatusDisplay.textContent = "P2P初期化エラー。リロードしてください。";
+            }
         });
         
         function startAIWaitingModeForHost(){
@@ -288,41 +242,61 @@
         
         window.addEventListener('resize', resizeCanvas);
         function initializeApp(){
+            console.log("Initializing App...");
+            stopGameLoop(); // 念のため初期化前にループ停止
+
             const urlParams=new URLSearchParams(window.location.search);
             hostPeerIdToConnect=urlParams.get('join');
             
-            resizeCanvas(); // 最初に必ずキャンバスサイズを設定
+            resizeCanvas(); // 最初にキャンバスサイズ確定
 
             if(hostPeerIdToConnect){
-                stopGameLoop();
+                console.log("Joining mode detected. Host ID:", hostPeerIdToConnect);
                 cleanupPeerResources();localPlayerRole='client';gameMode='p2p_client_joining';
                 player1.name="友達";player2.name="あなた";player2.isAI=false;
                 initialControls.classList.add('hidden');p2pHostInfo.classList.add('hidden');p2pClientInfo.classList.remove('hidden');
                 joinStatusDisplay.textContent=`ホスト ${hostPeerIdToConnect.substring(0,6)}... に接続中...`;
-                initGameElements(); // ゲームオブジェクトを初期化
-                drawField();        // 盤面を描画
+                initGameElements(); // ゲームオブジェクト初期化
+                drawField();        // 空の盤面表示
 
-                peer=new Peer();
-                peer.on('open',(id)=>{myPeerId=id;conn=peer.connect(hostPeerIdToConnect,{reliable:true});
-                    conn.on('open',()=>{
-                        stopGameLoop();
-                        gameMode='p2p_playing';gameStatusDisplay.textContent='P2P対戦開始！';
-                        resetGame(false);updateScoreDisplay();startGameLoop();
+                try {
+                    peer=new Peer(); // クライアントのPeerオブジェクト生成
+                    console.log("Client Peer object created");
+
+                    peer.on('open',(id)=>{
+                        myPeerId=id;
+                        console.log("Client Peer opened:", myPeerId, "Attempting to connect to:", hostPeerIdToConnect);
+                        conn=peer.connect(hostPeerIdToConnect,{reliable:true});
+                        
+                        conn.on('open',()=>{
+                            console.log("Connection established with host (Client side)");
+                            stopGameLoop(); // 接続待機中の描画ループを停止
+                            gameMode='p2p_playing';gameStatusDisplay.textContent='P2P対戦開始！';
+                            resetGame(false);updateScoreDisplay();startGameLoop(); // P2Pゲームループ開始
+                        });
+                        conn.on('data',handleP2PData);
+                        conn.on('close',()=>{console.log("Connection closed by host");gameStatusDisplay.textContent='ホスト切断';cleanupAndShowInitialScreen();});
+                        conn.on('error',(err)=>{console.error("Connエラー(C):",err);joinStatusDisplay.textContent=`接続エラー:${err.type}`;cleanupAndShowInitialScreen();});
                     });
-                    conn.on('data',handleP2PData);
-                    conn.on('close',()=>{gameStatusDisplay.textContent='ホスト切断';cleanupAndShowInitialScreen();});
-                    conn.on('error',(err)=>{console.error("Connエラー(C):",err);joinStatusDisplay.textContent=`接続エラー:${err.type}`;cleanupAndShowInitialScreen();});
-                });
-                peer.on('error',handlePeerError);
-                peer.on('disconnected',()=>{gameStatusDisplay.textContent="P2P鯖から切断";cleanupAndShowInitialScreen();});
+                    peer.on('error', handlePeerError);
+                    peer.on('disconnected',()=>{gameStatusDisplay.textContent="P2P鯖から切断";cleanupAndShowInitialScreen();});
+                } catch (error) {
+                     console.error("Client PeerJS initialization failed:", error);
+                     joinStatusDisplay.textContent = "P2P初期化エラー。リロードしてください。";
+                }
+
             }else{
+                console.log("Host mode or initial state.");
                 gameMode='menu';initialControls.classList.remove('hidden');p2pHostInfo.classList.add('hidden');p2pClientInfo.classList.add('hidden');gameStatusDisplay.textContent='モードを選択';
                 // メニュー画面の初期描画
                 drawField();
-                startGameLoop(); // メニュー画面でも描画ループを開始
+                startGameLoop(); // メニュー画面用ループ開始
             }
         }
-        initializeApp();
+        
+        // DOMが完全に読み込まれてから初期化処理を実行
+        window.addEventListener('load', initializeApp);
+
     </script>
 </body>
 </html>
