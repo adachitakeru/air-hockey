@@ -76,12 +76,9 @@
 
     <div id="infoContainer">
         <h1>ブロック崩しゲーム</h1>
-        <p><strong>PC:</strong> このページに表示されるQRコードをスマートフォンでスキャンしてください。</p>
-        <p><strong>スマートフォン:</strong> QRコードをスキャン後、表示されたページでゲームをプレイできます。画面をタッチしてバーを操作してください。</p>
     </div>
 
     <div id="qrcodeContainer">
-        <p>スマートフォンでスキャンしてプレイ:</p>
         <div id="qrcode"></div>
     </div>
 
@@ -255,7 +252,7 @@
                             if (score === brickRowCount * brickColumnCount) {
                                 gameWon = true;
                                 gameStarted = false;
-                                showMessage("クリア！おめでとう！\nタッチしてもう一度プレイ");
+                                showMessage("クリア！おめでとう！");
                             }
                         }
                     }
